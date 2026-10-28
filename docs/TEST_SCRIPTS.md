@@ -1,6 +1,6 @@
 # Test scripts — 5 users, 5 situations
 
-Five end-to-end walkthroughs that together cover every part of the app. Each script is one realistic working flow by a different user, with a different company and situation. Spoken lines are in quotes; type them into the assistant's "Or type…" field if you test without a microphone.
+Five end-to-end walkthroughs that together cover every part of the app. Voice assistant only: see [VOICE_TEST_SCRIPTS.md](./VOICE_TEST_SCRIPTS.md). Each script is one realistic working flow by a different user, with a different company and situation. Spoken lines are in quotes; type them into the assistant's "Or type…" field if you test without a microphone.
 
 ## Before every script
 
