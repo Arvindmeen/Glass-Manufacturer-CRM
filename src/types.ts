@@ -88,6 +88,7 @@ export interface Email {
   date: string
   read: boolean
   isQuote: boolean
+  /** Confirmed extraction of a quote request. */
   quote?: QuoteRequest
   transferredAt?: string
 }

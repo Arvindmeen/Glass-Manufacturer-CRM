@@ -347,3 +347,27 @@ h3 { font-size: 0.95rem; }
   .map-card { position: sticky; top: 20px; margin: 0; }
   .sticky-action { bottom: 16px; }
 }
+
+/* ---------- inbox ---------- */
+.inbox.has-open .inbox-list { display: none; }
+.inbox:not(.has-open) .inbox-detail { display: none; }
+@media (min-width: 900px) {
+  .inbox { display: grid; grid-template-columns: minmax(280px, 360px) 1fr; gap: 20px; align-items: start; }
+  .inbox.has-open .inbox-list, .inbox .inbox-detail { display: block; }
+  .inbox-list { position: sticky; top: 28px; max-height: calc(100dvh - 56px); overflow: auto; }
+  .inbox-back { display: none; }
+  .inbox-detail .page-head { min-height: 40px; }
+}
+.quote-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.quote-table th { text-align: left; font-size: 0.75rem; color: var(--muted); font-weight: 600; padding: 6px 6px 6px 0; border-bottom: 1px solid var(--border); }
+.quote-table td { padding: 8px 6px 8px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+.quote-table td:first-child { font-weight: 600; white-space: nowrap; }
+.quote-item { display: grid; grid-template-columns: 64px 1fr 40px; gap: 6px; align-items: center; }
+.quote-item .dims { grid-column: 2; }
+.quote-item .btn { grid-row: 1; grid-column: 3; }
+.quote-item { padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+@media (min-width: 700px) {
+  .quote-item { grid-template-columns: 70px 1fr 170px 40px; padding: 0; border: 0; }
+  .quote-item .dims { grid-column: 3; }
+  .quote-item .btn { grid-column: 4; }
+}
