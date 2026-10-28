@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Navigate, Route, Routes, useNavigate, useParams } from 'react-router-dom'
-import { ChevronRight, Loader2, MessageCircle, Mic, Pencil, Plus, Send } from 'lucide-react'
+import { ChevronRight, Loader2, MessageCircle, Pencil, Plus, Send } from 'lucide-react'
 import { useT } from '../i18n'
 import { ask } from '../lib/assistant'
 import { matches } from '../lib/format'
@@ -152,6 +152,7 @@ function ChatSheet({ onClose }: { onClose: () => void }) {
   const [messages, setMessages] = useState<ChatMessage[]>(chatHistory)
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
+  const [recording, setRecording] = useState(false)
   const body = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -193,17 +194,26 @@ function ChatSheet({ onClose }: { onClose: () => void }) {
             void send(input)
           }}
         >
-          <VoiceMini onText={send} />
-          <input
-            className="input"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder={t('kb.chatPlaceholder')}
-            enterKeyHint="send"
+          <VoiceRecorder
+            variant="icon"
+            onText={send}
+            onError={toast}
+            onActiveChange={setRecording}
           />
-          <button className="btn primary icon" type="submit" disabled={!input.trim() || busy} aria-label={t('kb.chat')}>
-            <Send size={18} />
-          </button>
+          {!recording && (
+            <input
+              className="input"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={t('kb.chatPlaceholder')}
+              enterKeyHint="send"
+            />
+          )}
+          {!recording && (
+            <button className="btn primary icon" type="submit" disabled={!input.trim() || busy} aria-label={t('kb.chat')}>
+              <Send size={18} />
+            </button>
+          )}
         </form>
       }
     >
@@ -220,30 +230,5 @@ function ChatSheet({ onClose }: { onClose: () => void }) {
         )}
       </div>
     </Sheet>
-  )
-}
-
-/** Mic button that sends the transcript as a chat question. */
-function VoiceMini({ onText }: { onText: (text: string) => Promise<void> }) {
-  const [on, setOn] = useState(false)
-  return on ? (
-    <span style={{ display: 'none' }}>
-      <VoiceRecorder
-        autoStart
-        onText={async (text) => {
-          setOn(false)
-          await onText(text)
-        }}
-        onCancel={() => setOn(false)}
-        onError={(msg) => {
-          setOn(false)
-          toast(msg)
-        }}
-      />
-    </span>
-  ) : (
-    <button type="button" className="btn icon" onClick={() => setOn(true)} aria-label="Mic">
-      <Mic size={18} />
-    </button>
   )
 }

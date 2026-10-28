@@ -8,7 +8,7 @@ import { fullName, useDB } from '../store/db'
 import { DatePicker, Select, type Option } from './Dropdown'
 import { companyOptions as companyOptionsOf, personOptions as personOptionsOf } from './options'
 import { ErrorText, Field, Sheet, toast, useClosing } from './ui'
-import { VoiceOverlay } from './VoiceOverlay'
+import { VoiceBar } from './VoiceBar'
 import { VoiceRecorder } from './VoiceRecorder'
 
 const icons: Record<Proposal['kind'], ReactNode> = {
@@ -54,9 +54,10 @@ export function VoiceCommand({ onClose }: { onClose: () => void }) {
     return (
       <Sheet title={t('voice.start')} onClose={close} closing={closing}>
         <div className="stack">
-          <VoiceRecorder big autoStart onText={run} onCancel={close} />
-          {busy && typedRun && (
-            <VoiceOverlay mode="processing" seconds={0} getLevel={() => 0} onDone={() => {}} onCancel={() => {}} />
+          {busy && typedRun ? (
+            <VoiceBar mode="processing" seconds={0} getLevel={() => 0} onDone={() => {}} onCancel={() => {}} />
+          ) : (
+            <VoiceRecorder big autoStart onText={run} onCancel={close} />
           )}
           <form
             className="row-gap"

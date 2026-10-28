@@ -5,7 +5,7 @@ import { MissingKeyError, transcribe } from '../lib/openai'
 import { useRecorder } from '../lib/useRecorder'
 import { vaultStatus } from '../lib/keyVault'
 import { ErrorText } from './ui'
-import { VoiceOverlay } from './VoiceOverlay'
+import { VoiceBar } from './VoiceBar'
 
 const MAX_SECONDS = 600
 
@@ -20,6 +20,8 @@ export function VoiceRecorder({
   autoStart,
   onCancel,
   onError,
+  variant = big ? 'block' : 'button',
+  onActiveChange,
 }: {
   onText: (text: string) => Promise<void> | void
   label?: string
@@ -28,6 +30,10 @@ export function VoiceRecorder({
   onCancel?: () => void
   /** When set, errors are reported here instead of inline. */
   onError?: (msg: string) => void
+  /** block: full-width button → large bar; button: normal button; icon: mic icon → compact bar. */
+  variant?: 'block' | 'button' | 'icon'
+  /** Tells the parent when the bar is showing (e.g. to hide a text input next to it). */
+  onActiveChange?: (active: boolean) => void
 }) {
   const t = useT()
   const rec = useRecorder()
@@ -69,30 +75,46 @@ export function VoiceRecorder({
     }
   }
 
+  const active = rec.state === 'recording' || busy
+  const reported = useRef(false)
+  useEffect(() => {
+    if (reported.current === active) return
+    reported.current = active
+    onActiveChange?.(active)
+  }, [active, onActiveChange])
+
   // Safety stop: very long recordings exceed what one transcription request accepts.
   useEffect(() => {
     if (rec.state === 'recording' && rec.seconds >= MAX_SECONDS) void finish()
   })
 
+  const cancel = () => {
+    rec.cancel()
+    onCancel?.()
+  }
+
   return (
-    <div className="stack" style={{ gap: 6 }}>
-      <button className={big ? 'btn lg block accent' : 'btn'} onClick={begin} disabled={busy}>
-        <Mic size={18} /> {label ?? t('voice.start')}
-      </button>
-      {rec.state === 'denied' && !onError && <span className="error">{t('voice.micDenied')}</span>}
-      <ErrorText msg={error} noKeyMsg={t('voice.noKey')} />
-      {(rec.state === 'recording' || busy) && (
-        <VoiceOverlay
+    <div className={`voice-recorder ${variant}${active ? ' active' : ''}`}>
+      {active ? (
+        <VoiceBar
+          size={variant === 'block' ? 'lg' : 'sm'}
           mode={busy ? 'processing' : 'recording'}
           seconds={rec.seconds}
           getLevel={rec.getLevel}
           onDone={() => void finish()}
-          onCancel={() => {
-            rec.cancel()
-            onCancel?.()
-          }}
+          onCancel={cancel}
         />
+      ) : variant === 'icon' ? (
+        <button type="button" className="btn icon" onClick={begin} aria-label={label ?? t('voice.start')}>
+          <Mic size={18} />
+        </button>
+      ) : (
+        <button type="button" className={variant === 'block' ? 'btn lg block accent' : 'btn'} onClick={begin}>
+          <Mic size={18} /> {label ?? t('voice.start')}
+        </button>
       )}
+      {rec.state === 'denied' && !onError && <span className="error">{t('voice.micDenied')}</span>}
+      <ErrorText msg={error} noKeyMsg={t('voice.noKey')} />
     </div>
   )
 }
