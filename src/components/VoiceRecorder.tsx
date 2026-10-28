@@ -4,6 +4,7 @@ import { useT } from '../i18n'
 import { MissingKeyError, transcribe } from '../lib/openai'
 import { useRecorder } from '../lib/useRecorder'
 import { getSettings } from '../store/settings'
+import { ErrorText } from './ui'
 import { VoiceOverlay } from './VoiceOverlay'
 
 /**
@@ -72,7 +73,7 @@ export function VoiceRecorder({
         <Mic size={18} /> {label ?? t('voice.start')}
       </button>
       {rec.state === 'denied' && !onError && <span className="error">{t('voice.micDenied')}</span>}
-      {error && <span className="error">{error}</span>}
+      <ErrorText msg={error} noKeyMsg={t('voice.noKey')} />
       {(rec.state === 'recording' || busy) && (
         <VoiceOverlay
           mode={busy ? 'processing' : 'recording'}

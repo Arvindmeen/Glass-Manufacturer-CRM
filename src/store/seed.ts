@@ -1,9 +1,10 @@
+import { localISO } from '../lib/format'
 import type { Company, DB, Email, KnowledgeEntry, Meeting, Person, Task } from '../types'
 
 const day = (offset: number) => {
   const d = new Date()
   d.setDate(d.getDate() + offset)
-  return d.toISOString().slice(0, 10)
+  return localISO(d)
 }
 const stamp = (offset: number, hour = 9) => {
   const d = new Date()

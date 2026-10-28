@@ -4,7 +4,11 @@ export function formatDate(iso: string, locale: string, opts: Intl.DateTimeForma
   return d.toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric', ...opts })
 }
 
-export const todayISO = () => new Date().toISOString().slice(0, 10)
+/** YYYY-MM-DD in the device's time zone (toISOString would give the UTC date). */
+export const localISO = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+export const todayISO = () => localISO(new Date())
 
 export function dueState(due: string): 'overdue' | 'today' | 'soon' | '' {
   if (!due) return ''

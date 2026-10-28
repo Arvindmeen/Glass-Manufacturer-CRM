@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import {
   BookOpen,
@@ -40,6 +40,9 @@ export function Layout() {
   const [moreOpen, setMoreOpen] = useState(false)
   const { pathname } = useLocation()
   const moreActive = secondary.some((n) => pathname.startsWith(n.to))
+
+  // Following a link out of the voice sheet (e.g. to Settings) closes it.
+  useEffect(() => setVoiceOpen(false), [pathname])
 
   const badge = (to: string) =>
     to === '/inbox' && unread > 0 ? <span className="chip danger">{unread}</span> : null

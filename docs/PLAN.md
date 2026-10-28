@@ -35,7 +35,10 @@ Guiding rule for every screen: show only what a sales rep on the road needs. No 
 - Architecture plan (Part 2) in Markdown with Mermaid diagrams.
 - Vercel deploy config; screen recording (done by you).
 
+## Decisions
+- Default language: English (German switchable in the UI).
+- Map: Google Maps only (keyless embed + directions link), no other map service.
+- OpenAI key: entered by the user in Settings, never in the repo.
+
 ## Open questions for the client
-- Map tiles: is OpenStreetMap allowed for the map view, or only Google Maps links? (Prototype default: an offline map drawn from coordinates, no extra service.)
 - ERP name for the "Transfer to …" button.
-- Primary language of reps (default UI language).

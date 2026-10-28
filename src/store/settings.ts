@@ -10,7 +10,7 @@ export interface Settings {
 const KEY = 'glasscrm:settings:v1'
 
 function load(): Settings {
-  const fallback: Settings = { openaiKey: '', lang: navigator.language.startsWith('de') ? 'de' : 'en' }
+  const fallback: Settings = { openaiKey: '', lang: 'en' }
   try {
     const raw = localStorage.getItem(KEY)
     if (raw) return { ...fallback, ...(JSON.parse(raw) as Partial<Settings>) }

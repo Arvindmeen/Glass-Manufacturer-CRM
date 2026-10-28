@@ -97,6 +97,7 @@ export const en = {
   'proposal.existing': 'Existing',
   'proposal.accept': 'Accept',
   'proposal.reject': 'Reject',
+  'proposal.maybe': 'Already in the CRM?',
   'proposal.target': 'Add to',
 
   // knowledge
@@ -128,6 +129,7 @@ export const en = {
   'inbox.confirm': 'Confirm',
   'inbox.transfer': 'Transfer to {erp}',
   'inbox.transferred': 'Transferred to {erp}',
+  'inbox.missing': 'Missing',
   'inbox.addItem': 'Add item',
 
   // leads

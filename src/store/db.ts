@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import type { Company, DB, Email, ID, KnowledgeEntry, Meeting, Person, Task } from '../types'
+import { todayISO } from '../lib/format'
 import { seed } from './seed'
 
 const KEY = 'glasscrm:db:v1'
@@ -7,7 +8,14 @@ const KEY = 'glasscrm:db:v1'
 function load(): DB {
   try {
     const raw = localStorage.getItem(KEY)
-    if (raw) return JSON.parse(raw) as DB
+    if (raw) {
+      const data = JSON.parse(raw) as Partial<DB>
+      const fresh = seed()
+      // Keep valid collections, fall back to seed for missing or malformed ones.
+      return Object.fromEntries(
+        (Object.keys(fresh) as (keyof DB)[]).map((k) => [k, Array.isArray(data[k]) ? data[k] : fresh[k]]),
+      ) as unknown as DB
+    }
   } catch {
     // fall through to seed data
   }
@@ -88,7 +96,7 @@ export const blankPerson = (patch: Partial<Person> = {}): Person => ({
 
 export const blankMeeting = (patch: Partial<Meeting> = {}): Meeting => ({
   id: uid(),
-  date: now().slice(0, 10),
+  date: todayISO(),
   title: '',
   summary: '',
   companyIds: [],

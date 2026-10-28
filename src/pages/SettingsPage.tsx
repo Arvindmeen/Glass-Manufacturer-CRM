@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, Trash2 } from 'lucide-react'
 import { useT } from '../i18n'
 import { resetDemoData } from '../store/db'
 import { updateSettings, useSettings, type Lang } from '../store/settings'
@@ -37,6 +37,11 @@ export function SettingsPage() {
             <button className="btn icon" type="button" onClick={() => setShow((s) => !s)} aria-label="Show key">
               {show ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
+            {settings.openaiKey && (
+              <button className="btn icon" type="button" onClick={() => updateSettings({ openaiKey: '' })} aria-label={t('common.delete')}>
+                <Trash2 size={18} />
+              </button>
+            )}
           </div>
           <span className="muted small">{t('settings.keyStored')}</span>
         </Field>

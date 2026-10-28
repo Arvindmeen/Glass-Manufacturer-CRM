@@ -19,8 +19,8 @@ import type { Company, DB, Person } from '../types'
 export type Ref = string
 
 export type Proposal =
-  | { kind: 'create_company'; ref: Ref; name: string; industry: string; street: string; zip: string; city: string; phone: string; email: string; notes: string }
-  | { kind: 'create_person'; ref: Ref; firstName: string; lastName: string; role: string; phone: string; email: string; notes: string; companyRefs: Ref[] }
+  | { kind: 'create_company'; ref: Ref; name: string; industry: string; street: string; zip: string; city: string; phone: string; email: string; notes: string; similar?: string[] }
+  | { kind: 'create_person'; ref: Ref; firstName: string; lastName: string; role: string; phone: string; email: string; notes: string; companyRefs: Ref[]; similar?: string[] }
   | { kind: 'create_meeting'; date: string; title: string; summary: string; companyRefs: Ref[]; personRefs: Ref[] }
   | { kind: 'create_task'; title: string; due: string; companyRef?: Ref; personRef?: Ref }
   | { kind: 'add_note'; targetRef: Ref; text: string }
@@ -55,8 +55,60 @@ export function findCompany(db: DB, name: string): Company | undefined {
 export function findPerson(db: DB, firstName: string, lastName: string): Person | undefined {
   const f = normalize(firstName)
   const l = normalize(lastName)
-  if (!l) return
-  return db.people.find((p) => normalize(p.lastName) === l && (!f || normalize(p.firstName) === f))
+  if (!l || !f) return
+  return db.people.find((p) => normalize(p.lastName) === l && normalize(p.firstName) === f)
+}
+
+/** Edit distance, for typos in transcribed names ("Hubr", "Meyer"). */
+function distance(a: string, b: string) {
+  const row = Array.from({ length: b.length + 1 }, (_, i) => i)
+  for (let i = 1; i <= a.length; i++) {
+    let prev = row[0]
+    row[0] = i
+    for (let j = 1; j <= b.length; j++) {
+      const tmp = row[j]
+      row[j] = Math.min(row[j] + 1, row[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1))
+      prev = tmp
+    }
+  }
+  return row[b.length]
+}
+const close = (a: string, b: string) => a.length > 3 && b.length > 3 && distance(a, b) <= Math.max(1, Math.floor(Math.min(a.length, b.length) / 5))
+
+/**
+ * Existing companies that might be meant but did not match confidently.
+ * Words shared by several companies ("Schreinerei", "Architekten") are ignored.
+ */
+export function similarCompanies(db: DB, name: string, city = ''): Company[] {
+  const words = (n: string) => companyKey(n).split(' ').filter((w) => w.length > 2)
+  const freq = new Map<string, number>()
+  db.companies.forEach((c) => new Set(words(c.name)).forEach((w) => freq.set(w, (freq.get(w) ?? 0) + 1)))
+  const mine = words(name).filter((w) => (freq.get(w) ?? 0) < 2)
+  const k = companyKey(name)
+  return db.companies
+    .filter((c) => {
+      const theirs = words(c.name).filter((w) => (freq.get(w) ?? 0) < 2)
+      return close(k, companyKey(c.name)) || mine.some((w) => theirs.some((x) => x === w || close(x, w)))
+    })
+    .sort((a, b) => Number(normalize(b.city) === normalize(city)) - Number(normalize(a.city) === normalize(city)))
+    .slice(0, 3)
+}
+
+export function similarPeople(db: DB, firstName: string, lastName: string, companyIds: string[]): Person[] {
+  const f = normalize(firstName)
+  const l = normalize(lastName)
+  return db.people
+    .filter((p) => {
+      const pf = normalize(p.firstName)
+      const pl = normalize(p.lastName)
+      const sameCompany = p.companyIds.some((c) => companyIds.includes(c))
+      return (
+        (l && (pl === l || close(pl, l)) && (!f || pf === f || close(pf, f) || sameCompany)) ||
+        (!l && f && pf === f && sameCompany) ||
+        (f && pf === f && l && close(pl, l))
+      )
+    })
+    .slice(0, 3)
 }
 
 /* ---------- AI interpretation ---------- */
@@ -136,6 +188,7 @@ export function resolve(db: DB, actions: RawAction[]): ReviewItem[] {
         proposals.push({
           kind: 'create_company', ref, name: str(a.name), industry: str(a.industry), street: str(a.street),
           zip: str(a.zip), city: str(a.city), phone: str(a.phone), email: str(a.email), notes: str(a.notes),
+          similar: similarCompanies(db, str(a.name), str(a.city)).map((c) => c.id),
         })
         break
       }
@@ -151,6 +204,7 @@ export function resolve(db: DB, actions: RawAction[]): ReviewItem[] {
         proposals.push({
           kind: 'create_person', ref, firstName: str(a.firstName), lastName: str(a.lastName), role: str(a.role),
           phone: str(a.phone), email: str(a.email), notes: str(a.notes), companyRefs: arr(a.companyRefs),
+          similar: similarPeople(db, str(a.firstName), str(a.lastName), arr(a.companyRefs).map(fix)).map((p) => p.id),
         })
         break
       }
@@ -223,13 +277,13 @@ export function applyProposals(items: ReviewItem[]) {
 
   for (const p of accepted) {
     if (p.kind === 'create_company') {
-      const { kind: _k, ref, ...fields } = p
+      const { kind: _k, ref, similar: _s, ...fields } = p
       ids.set(ref, saveCompany(blankCompany(fields)).id)
     }
   }
   for (const p of accepted) {
     if (p.kind === 'create_person') {
-      const { kind: _k, ref, companyRefs, ...fields } = p
+      const { kind: _k, ref, companyRefs, similar: _s, ...fields } = p
       ids.set(ref, savePerson(blankPerson({ ...fields, companyIds: resolveRefs(companyRefs) })).id)
     }
   }
@@ -246,4 +300,28 @@ export function applyProposals(items: ReviewItem[]) {
     }
   }
   return accepted.length
+}
+
+/**
+ * The user picked an existing record instead of creating `ref`: drop the create
+ * proposal and point every other proposal at the existing id.
+ */
+export function replaceWithExisting(items: ReviewItem[], ref: Ref, existingId: string): ReviewItem[] {
+  const swap = (r?: Ref) => (r === ref ? existingId : r)
+  const swapAll = (rs: Ref[]) => [...new Set(rs.map((r) => swap(r)!))]
+  return items
+    .filter((i) => !('ref' in i.proposal && i.proposal.ref === ref))
+    .map((i) => {
+      const p = i.proposal
+      switch (p.kind) {
+        case 'create_person':
+          return { ...i, proposal: { ...p, companyRefs: swapAll(p.companyRefs) } }
+        case 'create_meeting':
+          return { ...i, proposal: { ...p, companyRefs: swapAll(p.companyRefs), personRefs: swapAll(p.personRefs) } }
+        case 'create_task':
+          return { ...i, proposal: { ...p, companyRef: swap(p.companyRef), personRef: swap(p.personRef) } }
+        default:
+          return i
+      }
+    })
 }

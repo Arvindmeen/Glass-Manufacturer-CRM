@@ -1,5 +1,5 @@
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { ChevronLeft, Search, X } from 'lucide-react'
 
 export function PageHead({ title, back, children }: { title: ReactNode; back?: boolean; children?: ReactNode }) {
@@ -143,4 +143,16 @@ export function useDebounced<T>(value: T, ms = 150) {
     return () => window.clearTimeout(id)
   }, [value, ms])
   return v
+}
+
+/** Error line; the missing-key error links straight to Settings. */
+export function ErrorText({ msg, noKeyMsg }: { msg: string; noKeyMsg: string }) {
+  if (!msg) return null
+  return msg === noKeyMsg ? (
+    <Link to="/settings" className="error" style={{ textDecoration: 'underline' }}>
+      {msg}
+    </Link>
+  ) : (
+    <span className="error">{msg}</span>
+  )
 }

@@ -3,6 +3,7 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { Globe, Mail, MapPin, Navigation, Pencil, Phone, Plus } from 'lucide-react'
 import { useT } from '../i18n'
 import { mapsSearchUrl } from '../lib/format'
+import { addressOf } from '../lib/geo'
 import { fullName, linkPersonCompany, useDB } from '../store/db'
 import { CompanyForm, PersonForm } from '../components/forms'
 import { LinkedList, MeetingsSection, TasksSection } from '../components/related'
@@ -37,7 +38,7 @@ export function CompanyPage() {
         <a href={`mailto:${company.email}`} className={company.email ? '' : 'disabled'}>
           <Mail size={20} /> {t('common.email')}
         </a>
-        <a href={mapsSearchUrl(`${company.name}, ${address}`)} target="_blank" rel="noreferrer" className={address ? '' : 'disabled'}>
+        <a href={mapsSearchUrl(addressOf(company))} target="_blank" rel="noreferrer" className={address ? '' : 'disabled'}>
           <Navigation size={20} /> {t('common.navigate')}
         </a>
       </div>

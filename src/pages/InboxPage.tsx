@@ -3,12 +3,12 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { CheckCircle2, ChevronLeft, FileSearch, Loader2, Pencil, Plus, Send, Trash2 } from 'lucide-react'
 import { ERP_NAME } from '../config'
 import { useLocale, useT } from '../i18n'
-import { formatDate } from '../lib/format'
+import { formatDate, localISO, todayISO } from '../lib/format'
 import { findCompany } from '../lib/interpret'
 import { chatJSON, MissingKeyError } from '../lib/openai'
 import { getDB, saveEmail, useDB } from '../store/db'
 import type { Email, QuoteRequest } from '../types'
-import { Field, PageHead } from '../components/ui'
+import { ErrorText, Field, PageHead } from '../components/ui'
 
 export function InboxPage() {
   const t = useT()
@@ -35,7 +35,7 @@ export function InboxPage() {
 function EmailRow({ email, active }: { email: Email; active: boolean }) {
   const t = useT()
   const locale = useLocale()
-  const sameDay = email.date.slice(0, 10) === new Date().toISOString().slice(0, 10)
+  const sameDay = localISO(new Date(email.date)) === todayISO()
   return (
     <Link to={`/inbox/${email.id}`} replace={active} className={`list-item${active ? ' selected' : ''}`}>
       <div className="grow">
@@ -68,7 +68,7 @@ async function extractQuote(email: Email): Promise<QuoteRequest> {
   const r = await chatJSON<Partial<QuoteRequest>>(
     `Extract a quote request for a glass manufacturer from the email.
 Return JSON: {"customer": company name, "contact": person name, "items": [{"product": product incl. glass type, thickness, finish and extras, "quantity": number, "dimensions": "W x H mm" or ""}], "notes": delivery dates, deadlines and other requirements}.
-Keep the email's language. Use "" when unknown.`,
+Keep the email's language. Never invent values: use "" for anything the email does not state (e.g. dimensions only in attached drawings).`,
     `From: ${email.fromName} <${email.fromEmail}>\nSubject: ${email.subject}\n\n${email.body}`,
   )
   return {
@@ -190,7 +190,7 @@ function EmailView({ email }: { email: Email }) {
                     <tr key={n}>
                       <td>{i.quantity}</td>
                       <td>{i.product}</td>
-                      <td>{i.dimensions}</td>
+                      <td>{i.dimensions || <span className="chip warn">{t('inbox.missing')}</span>}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -215,7 +215,7 @@ function EmailView({ email }: { email: Email }) {
               {busy === 'extract' ? <Loader2 size={18} className="spin" /> : <FileSearch size={18} />} {t('inbox.extract')}
             </button>
           )}
-          {error && <p className="error">{error}</p>}
+          <p><ErrorText msg={error} noKeyMsg={t('voice.noKey')} /></p>
         </div>
       )}
     </>

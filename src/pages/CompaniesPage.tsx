@@ -3,12 +3,11 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Check, ChevronRight, Loader2, Navigation, Plus, Route } from 'lucide-react'
 import { useT } from '../i18n'
 import { matches } from '../lib/format'
-import { addressOf, locate } from '../lib/geo'
+import { addressOf, embedArea, embedPlace, embedRoute, locate } from '../lib/geo'
 import { currentPosition, googleMapsRoute, haversine, planRoute, type Point } from '../lib/route'
 import { useDB } from '../store/db'
 import type { Company } from '../types'
 import { CompanyForm } from '../components/forms'
-import { CompanyMap } from '../components/CompanyMap'
 import { Avatar, PageHead, SearchInput } from '../components/ui'
 
 /** Ignore the phone's position when it is far from all stops (e.g. testing from abroad). */
@@ -31,32 +30,38 @@ export function CompaniesPage() {
   const [selected, setSelected] = useState<string[]>([])
   const [route, setRoute] = useState<PlannedRoute | null>(null)
   const [planning, setPlanning] = useState(false)
+  const [focus, setFocus] = useState<Company | null>(null)
 
   const list = companies
     .filter((c) => matches(q, c.name, c.city, c.industry, c.zip))
     .sort((a, b) => a.name.localeCompare(b.name))
 
-  const toggle = (id: string) => {
+  const toggle = (c: Company) => {
     setRoute(null)
-    setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
+    const on = selected.includes(c.id)
+    setSelected((s) => (on ? s.filter((x) => x !== c.id) : [...s, c.id]))
+    setFocus(on ? null : c)
   }
 
   const plan = async () => {
     setPlanning(true)
-    const stops = selected.map((id) => companies.find((c) => c.id === id)!).filter((c) => locate(c))
+    const chosen = selected.map((id) => companies.find((c) => c.id === id)).filter((c): c is Company => !!c)
+    const stops = chosen.filter((c) => locate(c))
+    const unlocated = chosen.filter((c) => !locate(c))
     const points = stops.map((c) => locate(c)!)
     const here = await currentPosition()
     const start = here && points.some((p) => haversine(here, p) < MAX_START_KM) ? here : undefined
     const r = planRoute(points, start)
-    setRoute({ stops: r.order.map((i) => stops[i]), km: r.km, start })
+    // Stops without coordinates cannot be ordered; they go last.
+    setRoute({ stops: [...r.order.map((i) => stops[i]), ...unlocated], km: r.km, start })
     setPlanning(false)
   }
 
-  const located = list.filter((c) => locate(c))
-  const orderOf = (id: string) => {
-    const i = route?.stops.findIndex((s) => s.id === id) ?? -1
-    return i >= 0 ? i : undefined
-  }
+  const mapSrc = route
+    ? embedRoute(route.stops.map(addressOf), route.start)
+    : focus
+      ? embedPlace(focus)
+      : embedArea(list.map(locate).filter((p): p is Point => !!p))
 
   return (
     <>
@@ -96,17 +101,7 @@ export function CompaniesPage() {
       ) : (
         <div className="map-layout">
           <div className="card map-card">
-            <CompanyMap
-              start={route?.start}
-              onToggle={toggle}
-              pins={located.map((c) => ({
-                id: c.id,
-                label: c.name,
-                point: locate(c)!,
-                selected: selected.includes(c.id),
-                order: orderOf(c.id),
-              }))}
-            />
+            <iframe key={mapSrc} title={t('company.map')} src={mapSrc} className="map" loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
           </div>
 
           {route ? (
@@ -140,10 +135,10 @@ export function CompaniesPage() {
           ) : (
             <div className="stack">
               <div className="list">
-                {located.map((c) => {
+                {list.map((c) => {
                   const on = selected.includes(c.id)
                   return (
-                    <button key={c.id} className={`list-item${on ? ' selected' : ''}`} onClick={() => toggle(c.id)}>
+                    <button key={c.id} className={`list-item${on ? ' selected' : ''}`} onClick={() => toggle(c)}>
                       <span className={`check${on ? ' on' : ''}`}>{on && <Check size={14} />}</span>
                       <div className="grow">
                         <div className="title">{c.name}</div>

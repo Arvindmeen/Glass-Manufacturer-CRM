@@ -2,10 +2,10 @@ import { useState, type ReactNode } from 'react'
 import { Building2, Calendar, Check, ListChecks, Pencil, Send, StickyNote, User, X } from 'lucide-react'
 import { useLocale, useT } from '../i18n'
 import { formatDate } from '../lib/format'
-import { applyProposals, interpret, type Proposal, type Ref, type ReviewItem } from '../lib/interpret'
+import { applyProposals, interpret, replaceWithExisting, type Proposal, type Ref, type ReviewItem } from '../lib/interpret'
 import { MissingKeyError } from '../lib/openai'
 import { fullName, useDB } from '../store/db'
-import { Field, Sheet, toast } from './ui'
+import { ErrorText, Field, Sheet, toast } from './ui'
 import { VoiceOverlay } from './VoiceOverlay'
 import { VoiceRecorder } from './VoiceRecorder'
 
@@ -74,7 +74,7 @@ export function VoiceCommand({ onClose }: { onClose: () => void }) {
               <Send size={18} />
             </button>
           </form>
-          {error && <span className="error">{error}</span>}
+          <ErrorText msg={error} noKeyMsg={t('voice.noKey')} />
         </div>
       </Sheet>
     )
@@ -111,7 +111,13 @@ export function VoiceCommand({ onClose }: { onClose: () => void }) {
       {items.length === 0 && <div className="empty">{t('voice.nothing')}</div>}
       <div className="stack">
         {items.map((item) => (
-          <ProposalCard key={item.key} item={item} items={items} onChange={(patch) => update(item.key, patch)} />
+          <ProposalCard
+            key={item.key}
+            item={item}
+            items={items}
+            onChange={(patch) => update(item.key, patch)}
+            onUseExisting={(ref, id) => setItems(replaceWithExisting(items, ref, id))}
+          />
         ))}
       </div>
     </Sheet>
@@ -153,10 +159,12 @@ function ProposalCard({
   item,
   items,
   onChange,
+  onUseExisting,
 }: {
   item: ReviewItem
   items: ReviewItem[]
   onChange: (patch: Partial<ReviewItem>) => void
+  onUseExisting: (ref: Ref, existingId: string) => void
 }) {
   const t = useT()
   const locale = useLocale()
@@ -352,6 +360,16 @@ function ProposalCard({
         </div>
       </div>
       {editing && item.accepted ? <div className="form">{form}</div> : <div onClick={() => item.accepted && setEditing(true)}>{summary}</div>}
+      {item.accepted && (p.kind === 'create_company' || p.kind === 'create_person') && !!p.similar?.length && (
+        <div className="maybe">
+          <span>{t('proposal.maybe')}</span>
+          {p.similar.map((id) => (
+            <button key={id} className="btn small" onClick={() => onUseExisting(p.ref, id)}>
+              {refs.label(id)}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

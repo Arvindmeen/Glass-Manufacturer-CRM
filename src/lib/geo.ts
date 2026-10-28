@@ -42,5 +42,24 @@ export function locate(c: Company): Point | undefined {
   return cities[key]
 }
 
+/** Postal address for Google Maps; the business name only when there is no street. */
 export const addressOf = (c: Company) =>
-  [c.name, c.street, `${c.zip} ${c.city}`.trim()].filter(Boolean).join(', ')
+  [c.street || c.name, `${c.zip} ${c.city}`.trim(), 'Switzerland'].filter(Boolean).join(', ')
+
+/* Keyless Google Maps embeds (the only map service the brief allows). */
+const embed = (params: Record<string, string>) =>
+  `https://maps.google.com/maps?${new URLSearchParams({ ...params, output: 'embed' }).toString()}`
+
+export const embedPlace = (c: Company) => embed({ q: addressOf(c), z: '15' })
+
+export const embedArea = (points: Point[]) => {
+  const lat = points.reduce((s, p) => s + p.lat, 0) / (points.length || 1)
+  const lng = points.reduce((s, p) => s + p.lng, 0) / (points.length || 1)
+  return embed({ ll: `${lat.toFixed(4)},${lng.toFixed(4)}`, z: '9', t: 'm' })
+}
+
+export const embedRoute = (stops: string[], start?: Point) => {
+  const list = [...stops]
+  const saddr = start ? `${start.lat},${start.lng}` : list.shift()!
+  return embed({ saddr, daddr: list.join(' to:') })
+}

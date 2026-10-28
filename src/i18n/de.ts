@@ -91,6 +91,7 @@ export const de: Record<TKey, string> = {
   'proposal.existing': 'Bestehend',
   'proposal.accept': 'Annehmen',
   'proposal.reject': 'Ablehnen',
+  'proposal.maybe': 'Schon im CRM?',
   'proposal.target': 'Ergänzen bei',
 
   'kb.installation': 'Montage',
@@ -120,6 +121,7 @@ export const de: Record<TKey, string> = {
   'inbox.confirm': 'Bestätigen',
   'inbox.transfer': 'An {erp} übergeben',
   'inbox.transferred': 'An {erp} übergeben',
+  'inbox.missing': 'Fehlt',
   'inbox.addItem': 'Position hinzufügen',
 
   'leads.region': 'Region',
