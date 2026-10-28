@@ -330,3 +330,20 @@ h3 { font-size: 0.95rem; }
 @media (prefers-reduced-motion: reduce) {
   .voice-glow span, .voice-overlay.processing .voice-label { animation: none; }
 }
+
+/* ---------- map & route ---------- */
+.map { display: block; touch-action: manipulation; }
+.map-card { overflow: hidden; margin-bottom: 12px; background: var(--surface); }
+.map-layout { display: grid; gap: 12px; }
+.sticky-action {
+  position: sticky; bottom: calc(var(--nav-h) + 8px + env(safe-area-inset-bottom)); z-index: 5;
+  display: flex; align-items: center; gap: 8px; padding: 10px; margin-top: 8px;
+  background: var(--surface); border-radius: var(--radius); box-shadow: 0 -2px 16px rgb(0 0 0 / 10%);
+}
+.btn.grow, .sticky-action .grow { flex: 1; }
+.sticky-action > span { white-space: nowrap; }
+@media (min-width: 900px) {
+  .map-layout { grid-template-columns: 3fr 2fr; align-items: start; }
+  .map-card { position: sticky; top: 20px; margin: 0; }
+  .sticky-action { bottom: 16px; }
+}
