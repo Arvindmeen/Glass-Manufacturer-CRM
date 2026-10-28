@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Navigate, Route, Routes, useNavigate, useParams } from 'react-router-dom'
+import { Link, Navigate, Route, Routes, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ChevronRight, Loader2, MessageCircle, Mic, Pencil, Plus, Send } from 'lucide-react'
 import { openAssistant } from '../lib/assistantBus'
 import { useT } from '../i18n'
@@ -32,7 +32,18 @@ function KnowledgeList() {
   const { knowledge } = useDB()
   const [q, setQ] = useSearchQuery()
   const recent = useRecent()
-  const [section, setSection] = useState<string>('')
+  const [params, setParams] = useSearchParams()
+  const section = params.get('section') ?? ''
+  const setSection = (s: string) =>
+    setParams(
+      (p) => {
+        const n = new URLSearchParams(p)
+        if (s) n.set('section', s)
+        else n.delete('section')
+        return n
+      },
+      { replace: true },
+    )
   const [draft, setDraft] = useState<KnowledgeEntry | null>(null)
   const [chatOpen, setChatOpen] = useState(false)
 
@@ -115,12 +126,18 @@ function KnowledgeView() {
         </button>
       </PageHead>
       <div className="chips" style={{ marginBottom: 10 }}>
-        <span className="chip primary">{t(sectionLabel(entry.section))}</span>
-        {entry.product && <span className="chip">{entry.product}</span>}
+        <Link to={`/knowledge?section=${entry.section}`} className="chip primary chip-link">
+          {t(sectionLabel(entry.section))}
+        </Link>
+        {entry.product && (
+          <Link to={`/knowledge?q=${encodeURIComponent(entry.product)}`} className="chip chip-link">
+            {entry.product}
+          </Link>
+        )}
         {entry.tags.map((tag) => (
-          <span key={tag} className="chip">
-            #{tag}
-          </span>
+          <Link key={tag} to={`/knowledge?q=${encodeURIComponent(tag)}`} className="chip chip-link">
+            {tag}
+          </Link>
         ))}
       </div>
       {entry.summary && <p style={{ marginTop: 0 }}>{entry.summary}</p>}

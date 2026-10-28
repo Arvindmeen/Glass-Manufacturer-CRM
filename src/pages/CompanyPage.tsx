@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Navigate, useNavigate, useParams } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { Globe, Mail, MapPin, Navigation, Pencil, Phone, Plus } from 'lucide-react'
 import { useT } from '../i18n'
 import { flash, useRecent } from '../lib/recent'
@@ -48,7 +48,13 @@ export function CompanyPage() {
       </div>
 
       <div className="card info section">
-        {company.industry && <div className="info-row muted">{company.industry}</div>}
+        {company.industry && (
+          <div className="info-row">
+            <Link to={`/companies?q=${encodeURIComponent(company.industry)}`} className="chip chip-link">
+              {company.industry}
+            </Link>
+          </div>
+        )}
         {address && (
           <div className="info-row">
             <MapPin size={18} /> {address}

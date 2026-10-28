@@ -47,8 +47,16 @@ export function TaskCard({ task, showLinks = true, onOpen }: { task: Task; showL
               {due === 'today' ? t('common.today') : formatDate(task.due, locale, { year: undefined })}
             </span>
           )}
-          {showLinks && company && <span className="chip primary">{company.name}</span>}
-          {showLinks && person && <span className="chip">{fullName(person)}</span>}
+          {showLinks && company && (
+            <Link to={`/companies/${company.id}`} className="chip primary chip-link" onClick={(e) => e.stopPropagation()}>
+              {company.name}
+            </Link>
+          )}
+          {showLinks && person && (
+            <Link to={`/people/${person.id}`} className="chip chip-link" onClick={(e) => e.stopPropagation()}>
+              {fullName(person)}
+            </Link>
+          )}
         </div>
       </div>
     </div>
@@ -118,9 +126,15 @@ export function MeetingsSection({ filter, defaults }: { filter: (m: Meeting) => 
                   ·{' '}
                   {m.personIds
                     .map((id) => people.find((p) => p.id === id))
-                    .filter(Boolean)
-                    .map((p) => fullName(p!))
-                    .join(', ')}
+                    .filter((p) => !!p)
+                    .map((p, i) => (
+                      <span key={p.id}>
+                        {i > 0 && ', '}
+                        <Link to={`/people/${p.id}`} className="text-link" onClick={(e) => e.stopPropagation()}>
+                          {fullName(p)}
+                        </Link>
+                      </span>
+                    ))}
                 </span>
               )}
             </div>
