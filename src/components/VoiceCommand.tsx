@@ -1,34 +1,126 @@
-import { useState, type ReactNode } from 'react'
-import { Building2, Calendar, Check, ListChecks, Pencil, Send, StickyNote, User, X } from 'lucide-react'
-import { useLocale, useT } from '../i18n'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import {
+  BookOpen,
+  Building2,
+  Calendar,
+  Check,
+  ExternalLink,
+  ListChecks,
+  MessageCircle,
+  Mic,
+  Navigation as NavIcon,
+  Pencil,
+  RefreshCw,
+  Send,
+  StickyNote,
+  User,
+  X,
+} from 'lucide-react'
+import { useLocale, useT, type TKey } from '../i18n'
 import { formatDate } from '../lib/format'
-import { applyProposals, interpret, replaceWithExisting, type Proposal, type Ref, type ReviewItem } from '../lib/interpret'
+import {
+  applyProposals,
+  interpret,
+  navLabel,
+  pathFor,
+  replaceWithExisting,
+  type AssistantResult,
+  type PageKey,
+  type Proposal,
+  type Ref,
+  type ReviewItem,
+  type Step,
+} from '../lib/interpret'
 import { MissingKeyError } from '../lib/openai'
-import { fullName, useDB } from '../store/db'
+import { markRecent } from '../lib/recent'
+import { fullName, getDB, useDB } from '../store/db'
+import type { TaskStatus } from '../types'
 import { DatePicker, Select, type Option } from './Dropdown'
 import { companyOptions as companyOptionsOf, personOptions as personOptionsOf } from './options'
-import { ErrorText, Field, Sheet, toast, useClosing } from './ui'
+import { ErrorText, Field, Sheet, useClosing } from './ui'
 import { VoiceBar } from './VoiceBar'
 import { VoiceRecorder } from './VoiceRecorder'
 
-const icons: Record<Proposal['kind'], ReactNode> = {
+const icons: Record<Proposal['kind'] | 'navigate', ReactNode> = {
   create_company: <Building2 size={18} />,
   create_person: <User size={18} />,
   create_meeting: <Calendar size={18} />,
   create_task: <ListChecks size={18} />,
+  update_task: <ListChecks size={18} />,
   add_note: <StickyNote size={18} />,
+  create_knowledge: <BookOpen size={18} />,
+  navigate: <NavIcon size={18} />,
 }
 
+const pageKeys: Record<PageKey, TKey> = {
+  companies: 'nav.companies',
+  companies_map: 'company.map',
+  people: 'nav.people',
+  tasks: 'nav.tasks',
+  inbox: 'nav.inbox',
+  knowledge: 'nav.knowledge',
+  leads: 'nav.leads',
+  simap: 'nav.simap',
+  settings: 'nav.settings',
+}
+
+const sectionKey = (s: string): TKey =>
+  (['installation', 'products', 'troubleshooting', 'sales'].includes(s) ? `kb.${s}` : 'kb.all') as TKey
+
+/** Plain-language description of the open page, so "here" / "this company" can be resolved. */
+function describePage(path: string): string {
+  const db = getDB()
+  const [, section, id] = path.split('/')
+  if (section === 'companies' && id) return `company page of ${db.companies.find((c) => c.id === id)?.name} (id ${id})`
+  if (section === 'people' && id) {
+    const p = db.people.find((x) => x.id === id)
+    return `person page of ${p ? fullName(p) : '?'} (id ${id}, companies ${p?.companyIds.join(',')})`
+  }
+  if (section === 'knowledge' && id) return `knowledge entry ${db.knowledge.find((k) => k.id === id)?.title} (id ${id})`
+  if (section === 'knowledge') return 'knowledge base (spoken know-how should become a knowledge entry)'
+  if (section === 'inbox' && id) return `email "${db.emails.find((e) => e.id === id)?.subject}" (id ${id})`
+  return `${section || 'companies'} page`
+}
+
+type Phase = 'listen' | 'review' | 'done'
+
+/**
+ * The central assistant: speak (or type) anything. Data changes are proposed for review
+ * (accept / edit / reject); navigation and answers need no confirmation. After saving, each
+ * executed step is shown with a link, the app opens the right page and new entries glow there.
+ */
 export function VoiceCommand({ onClose }: { onClose: () => void }) {
   const t = useT()
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const [page] = useState(() => describePage(pathname))
   const [closing, close] = useClosing(onClose)
-  const [items, setItems] = useState<ReviewItem[] | null>(null)
+  const [phase, setPhase] = useState<Phase>('listen')
+  const [result, setResult] = useState<AssistantResult | null>(null)
+  const [items, setItems] = useState<ReviewItem[]>([])
+  const [steps, setSteps] = useState<Step[]>([])
   const [transcript, setTranscript] = useState('')
   const [typed, setTyped] = useState('')
   const [busy, setBusy] = useState(false)
+  const [typedRun, setTypedRun] = useState(false)
   const [error, setError] = useState('')
 
-  const [typedRun, setTypedRun] = useState(false)
+  // Leaving the page by hand (e.g. the Settings link in an error) closes the assistant;
+  // its own navigation happens in the "done" phase and keeps it open.
+  const [openedAt] = useState(pathname)
+  useEffect(() => {
+    if (phase !== 'done' && pathname !== openedAt) close()
+  }, [pathname, openedAt, phase, close])
+
+  const pageName = (p: PageKey) => t(pageKeys[p])
+  const navStep = (r: AssistantResult): Step | null =>
+    r.navigate ? { kind: 'navigate', label: t('step.open', { name: navLabel(r.navigate, pageName) }), to: pathFor(r.navigate), highlight: [] } : null
+
+  const finish = (done: Step[]) => {
+    setSteps(done)
+    setPhase('done')
+  }
 
   const run = async (text: string, fromVoice = true) => {
     if (!text.trim()) return
@@ -37,7 +129,15 @@ export function VoiceCommand({ onClose }: { onClose: () => void }) {
     setBusy(true)
     setError('')
     try {
-      setItems(await interpret(text))
+      const r = await interpret(text, page)
+      setResult(r)
+      setItems(r.items)
+      if (r.items.length) setPhase('review')
+      else {
+        // Nothing to change: just answer and/or open the page.
+        const nav = navStep(r)
+        finish(nav ? [nav] : [])
+      }
     } catch (e) {
       setError(e instanceof MissingKeyError ? t('voice.noKey') : t('voice.error', { msg: (e as Error).message }))
     } finally {
@@ -45,14 +145,34 @@ export function VoiceCommand({ onClose }: { onClose: () => void }) {
     }
   }
 
+  const save = () => {
+    const done = applyProposals(items, (k) => t(`proposal.${k}`))
+    const nav = result && navStep(result)
+    finish(nav ? [...done, nav] : done)
+  }
+
+  const reset = () => {
+    setPhase('listen')
+    setResult(null)
+    setItems([])
+    setSteps([])
+    setTyped('')
+  }
+
   const update = (key: string, patch: Partial<ReviewItem>) =>
-    setItems((list) => list?.map((i) => (i.key === key ? { ...i, ...patch } : i)) ?? null)
+    setItems((list) => list.map((i) => (i.key === key ? { ...i, ...patch } : i)))
+  const acceptedCount = items.filter((i) => i.accepted).length
 
-  const acceptedCount = items?.filter((i) => i.accepted).length ?? 0
+  const answer = result?.answer ? (
+    <div className="assistant-answer">
+      <MessageCircle size={18} />
+      <p>{result.answer}</p>
+    </div>
+  ) : null
 
-  if (!items) {
+  if (phase === 'listen') {
     return (
-      <Sheet title={t('voice.start')} onClose={close} closing={closing}>
+      <Sheet title={t('voice.assistant')} onClose={close} closing={closing}>
         <div className="stack">
           {busy && typedRun ? (
             <VoiceBar mode="processing" seconds={0} getLevel={() => 0} onDone={() => {}} onCancel={() => {}} />
@@ -73,6 +193,7 @@ export function VoiceCommand({ onClose }: { onClose: () => void }) {
               onChange={(e) => setTyped(e.target.value)}
               placeholder={t('voice.typeInstead')}
               disabled={busy}
+              enterKeyHint="send"
             />
             <button className="btn icon" type="submit" disabled={busy || !typed.trim()} aria-label={t('common.done')}>
               <Send size={18} />
@@ -84,35 +205,62 @@ export function VoiceCommand({ onClose }: { onClose: () => void }) {
     )
   }
 
+  if (phase === 'done') {
+    return (
+      <Sheet
+        title={t('voice.assistant')}
+        onClose={close}
+        closing={closing}
+        footer={
+          <>
+            <button className="btn" onClick={reset}>
+              <Mic size={16} /> {t('voice.again')}
+            </button>
+            <span className="grow" />
+            <button className="btn primary" onClick={close}>
+              {t('common.done')}
+            </button>
+          </>
+        }
+      >
+        <p className="muted small transcript">“{transcript}”</p>
+        {answer}
+        <StepList
+          steps={steps}
+          onComplete={(target, highlight) => {
+            if (!target) return markRecent(highlight)
+            navigate(target)
+            // Let the user see the page change behind the sheet, then reveal it and make new entries glow.
+            window.setTimeout(() => {
+              close()
+              markRecent(highlight)
+            }, 1100)
+          }}
+        />
+      </Sheet>
+    )
+  }
+
   return (
     <Sheet
       title={t('voice.review')}
-      onClose={close} closing={closing}
+      onClose={close}
+      closing={closing}
       wide
       footer={
         <>
-          <button className="btn" onClick={() => setItems(null)}>
-            {t('common.back')}
+          <button className="btn" onClick={reset} aria-label={t('voice.again')}>
+            <RefreshCw size={16} />
           </button>
           <span className="grow" />
-          <button
-            className="btn primary"
-            disabled={acceptedCount === 0}
-            onClick={() => {
-              applyProposals(items)
-              toast(t('voice.saved'))
-              close()
-            }}
-          >
+          <button className="btn primary" disabled={acceptedCount === 0} onClick={save}>
             <Check size={18} /> {t('voice.saveAccepted', { n: acceptedCount })}
           </button>
         </>
       }
     >
-      <p className="muted small" style={{ margin: '0 0 12px', fontStyle: 'italic' }}>
-        “{transcript}”
-      </p>
-      {items.length === 0 && <div className="empty">{t('voice.nothing')}</div>}
+      <p className="muted small transcript">“{transcript}”</p>
+      {answer}
       <div className="stack">
         {items.map((item) => (
           <ProposalCard
@@ -123,8 +271,58 @@ export function VoiceCommand({ onClose }: { onClose: () => void }) {
             onUseExisting={(ref, id) => setItems(replaceWithExisting(items, ref, id))}
           />
         ))}
+        {result?.navigate && (
+          <div className="card proposal nav-proposal">
+            <span className="row-gap muted small" style={{ fontWeight: 600 }}>
+              {icons.navigate} {t('step.open', { name: navLabel(result.navigate, pageName) })}
+            </span>
+          </div>
+        )}
       </div>
     </Sheet>
+  )
+}
+
+/* ---------- executed steps, revealed one after another ---------- */
+
+const STEP_MS = 420
+
+function StepList({ steps, onComplete }: { steps: Step[]; onComplete: (target: string | undefined, highlight: string[]) => void }) {
+  const [shown, setShown] = useState(0)
+
+  useEffect(() => {
+    if (shown >= steps.length) return
+    const id = window.setTimeout(() => setShown((n) => n + 1), shown === 0 ? 150 : STEP_MS)
+    return () => window.clearTimeout(id)
+  }, [shown, steps.length])
+
+  // When every step is visible, report where the work landed (once).
+  const reported = useRef(false)
+  useEffect(() => {
+    if (shown !== steps.length || steps.length === 0 || reported.current) return
+    reported.current = true
+    const target = steps.find((s) => s.kind === 'navigate')?.to ?? steps.find((s) => s.kind !== 'update_task' && s.to)?.to ?? steps[0]?.to
+    onComplete(target, steps.flatMap((s) => s.highlight))
+  }, [shown, steps, onComplete])
+
+  return (
+    <ol className="steps-run">
+      {steps.slice(0, shown).map((s, i) => (
+        <li key={i} className="step-run">
+          <span className="step-icon">{icons[s.kind]}</span>
+          <span className="grow">{s.label}</span>
+          {s.to ? (
+            <Link to={s.to} className="btn ghost icon small" aria-label={s.label}>
+              <ExternalLink size={16} />
+            </Link>
+          ) : null}
+          <span className="step-check">
+            <Check size={16} strokeWidth={3} />
+          </span>
+        </li>
+      ))}
+      {shown < steps.length && <li className="step-run pending" aria-hidden />}
+    </ol>
   )
 }
 
@@ -174,6 +372,7 @@ function ProposalCard({
   const locale = useLocale()
   const [editing, setEditing] = useState(false)
   const refs = useRefs(items)
+  const { tasks } = useDB()
   const p = item.proposal
   const set = (patch: Partial<Proposal>) => onChange({ proposal: { ...p, ...patch } as Proposal })
 
@@ -334,6 +533,90 @@ function ProposalCard({
         </>
       )
       break
+    case 'create_knowledge':
+      summary = (
+        <>
+          <div className="title">{p.title}</div>
+          <div className="sub">{[p.product, t(sectionKey(p.section))].filter(Boolean).join(' · ')}</div>
+          {p.summary && <div className="small" style={{ marginTop: 4 }}>{p.summary}</div>}
+          {p.steps.length > 0 && (
+            <ol className="small kb-steps-preview">
+              {p.steps.map((st, i) => (
+                <li key={i}>{st.text}</li>
+              ))}
+            </ol>
+          )}
+        </>
+      )
+      form = (
+        <>
+          <div className="row">
+            <Field label={t('kb.section')} group>
+              <Select
+                label={t('kb.section')}
+                value={p.section}
+                options={['installation', 'products', 'troubleshooting', 'sales'].map((x) => ({ value: x, label: t(sectionKey(x)) }))}
+                onChange={(v) => v && set({ section: v })}
+              />
+            </Field>
+            <Field label={t('kb.product')}>
+              <input className="input" value={p.product} onChange={(e) => set({ product: e.target.value })} />
+            </Field>
+          </div>
+          <Field label={t('field.title')}>
+            <input className="input" value={p.title} onChange={(e) => set({ title: e.target.value })} />
+          </Field>
+          <Field label={t('kb.summary')}>
+            <textarea className="textarea" rows={2} value={p.summary} onChange={(e) => set({ summary: e.target.value })} />
+          </Field>
+          <Field label={t('kb.steps')}>
+            <textarea
+              className="textarea"
+              rows={Math.max(3, p.steps.length + 1)}
+              value={p.steps.map((st) => st.text).join('\n')}
+              onChange={(e) => set({ steps: e.target.value.split('\n').map((text) => ({ text })) })}
+            />
+          </Field>
+        </>
+      )
+      break
+    case 'update_task': {
+      const task = tasks.find((x) => x.id === p.taskId)
+      summary = (
+        <>
+          <div className="title">{p.title ?? task?.title}</div>
+          <div className="chips" style={{ marginTop: 6 }}>
+            {p.status && task && p.status !== task.status && (
+              <span className="chip">
+                {t(`task.${task.status}`)} → <strong>{t(`task.${p.status}`)}</strong>
+              </span>
+            )}
+            {p.due && <span className="chip warn">{formatDate(p.due, locale, { weekday: 'short' })}</span>}
+          </div>
+        </>
+      )
+      form = (
+        <>
+          <Field label={t('field.title')}>
+            <input className="input" value={p.title ?? task?.title ?? ''} onChange={(e) => set({ title: e.target.value })} />
+          </Field>
+          <div className="row">
+            <Field label={t('field.status')} group>
+              <Select
+                label={t('field.status')}
+                value={p.status ?? task?.status}
+                options={(['planned', 'in_progress', 'done'] as const).map((x) => ({ value: x, label: t(`task.${x}`) }))}
+                onChange={(v) => v && set({ status: v as TaskStatus })}
+              />
+            </Field>
+            <Field label={t('field.due')} group>
+              <DatePicker label={t('field.due')} value={p.due ?? task?.due ?? ''} onChange={(due) => set({ due })} clearable quick />
+            </Field>
+          </div>
+        </>
+      )
+      break
+    }
   }
 
   return (

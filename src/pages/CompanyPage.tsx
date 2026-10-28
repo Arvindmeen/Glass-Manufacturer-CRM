@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { Globe, Mail, MapPin, Navigation, Pencil, Phone, Plus } from 'lucide-react'
 import { useT } from '../i18n'
+import { flash, useRecent } from '../lib/recent'
 import { mapsSearchUrl } from '../lib/format'
 import { addressOf } from '../lib/geo'
 import { fullName, linkPersonCompany, useDB } from '../store/db'
@@ -13,6 +14,7 @@ import { Avatar, PageHead, Section } from '../components/ui'
 
 export function CompanyPage() {
   const t = useT()
+  const recent = useRecent()
   const navigate = useNavigate()
   const { id = '' } = useParams()
   const { companies, people } = useDB()
@@ -74,7 +76,7 @@ export function CompanyPage() {
 
       {company.notes && (
         <Section title={t('common.notes')}>
-          <div className="card notes">{company.notes}</div>
+          <div className={`card notes${flash(recent, `${id}:notes`)}`}>{company.notes}</div>
         </Section>
       )}
 

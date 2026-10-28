@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { useT, type TKey } from '../i18n'
-import { chatJSON, text as asText } from '../lib/openai'
 import { deleteKnowledge, saveKnowledge, uid } from '../store/db'
 import type { KnowledgeEntry } from '../types'
 import { Select } from './Dropdown'
@@ -21,29 +20,6 @@ export const blankKnowledge = (): KnowledgeEntry => ({
   tags: [],
   createdAt: new Date().toISOString(),
 })
-
-/** Turn a technician's spoken know-how into a structured entry (not saved yet). */
-export async function structureKnowledge(text: string): Promise<KnowledgeEntry> {
-  const r = await chatJSON<Partial<KnowledgeEntry>>(
-    `A technician at a glass manufacturer describes practical know-how by voice.
-Turn it into a knowledge base entry. Keep every concrete detail (dimensions, tools, materials, warnings, times).
-Return JSON: {"section": one of ${SECTIONS.join('|')}, "title": short title, "product": product it applies to,
-"summary": 1-3 sentences, "steps": [{"text": one action per step, "image": 2-4 word caption for an illustration}] (empty if not a procedure),
-"tags": 2-5 short keywords}. Write in the language spoken.`,
-    text,
-  )
-  return {
-    ...blankKnowledge(),
-    section: (SECTIONS as readonly string[]).includes(asText(r.section)) ? asText(r.section) : 'installation',
-    title: asText(r.title),
-    product: asText(r.product),
-    summary: asText(r.summary) || text,
-    steps: (Array.isArray(r.steps) ? r.steps : [])
-      .map((s) => ({ text: asText(s?.text), image: asText(s?.image) || undefined }))
-      .filter((s) => s.text),
-    tags: (Array.isArray(r.tags) ? r.tags : []).map(asText).filter(Boolean),
-  }
-}
 
 export function KnowledgeForm({
   entry,

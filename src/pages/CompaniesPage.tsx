@@ -8,7 +8,8 @@ import { currentPosition, googleMapsRoute, haversine, planRoute, type Point } fr
 import { useDB } from '../store/db'
 import type { Company } from '../types'
 import { CompanyForm } from '../components/forms'
-import { Avatar, PageHead, SearchInput } from '../components/ui'
+import { Avatar, PageHead, SearchInput, useSearchQuery } from '../components/ui'
+import { flash, useRecent } from '../lib/recent'
 
 /** Ignore the phone's position when it is far from all stops (e.g. testing from abroad). */
 const MAX_START_KM = 150
@@ -25,7 +26,8 @@ export function CompaniesPage() {
   const { companies, people } = useDB()
   const [params, setParams] = useSearchParams()
   const view = params.get('view') === 'map' ? 'map' : 'list'
-  const [q, setQ] = useState('')
+  const [q, setQ] = useSearchQuery()
+  const recent = useRecent()
   const [creating, setCreating] = useState(false)
   const [selected, setSelected] = useState<string[]>([])
   const [route, setRoute] = useState<PlannedRoute | null>(null)
@@ -76,10 +78,10 @@ export function CompaniesPage() {
         }
       >
         <div className="segmented" style={{ width: 'auto' }}>
-          <button className={view === 'list' ? 'active' : ''} onClick={() => setParams({}, { replace: true })}>
+          <button className={view === 'list' ? 'active' : ''} onClick={() => setParams((p) => { const n = new URLSearchParams(p); n.delete('view'); return n }, { replace: true })}>
             {t('company.list')}
           </button>
-          <button className={view === 'map' ? 'active' : ''} onClick={() => setParams({ view: 'map' }, { replace: true })}>
+          <button className={view === 'map' ? 'active' : ''} onClick={() => setParams((p) => { const n = new URLSearchParams(p); n.set('view', 'map'); return n }, { replace: true })}>
             {t('company.map')}
           </button>
         </div>
@@ -92,7 +94,7 @@ export function CompaniesPage() {
           {list.map((c) => {
             const count = people.filter((p) => p.companyIds.includes(c.id)).length
             return (
-              <button key={c.id} className="list-item" onClick={() => navigate(`/companies/${c.id}`)}>
+              <button key={c.id} className={`list-item${flash(recent, c.id)}`} onClick={() => navigate(`/companies/${c.id}`)}>
                 <Avatar text={c.name} square />
                 <div className="grow">
                   <div className="title">{c.name}</div>

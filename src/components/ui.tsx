@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ChevronLeft, Search, X } from 'lucide-react'
 
 /**
@@ -320,4 +320,21 @@ export function ErrorText({ msg, noKeyMsg }: { msg: string; noKeyMsg: string }) 
   ) : (
     <span className="error">{msg}</span>
   )
+}
+
+/** List search kept in the URL (?q=), so the assistant can open a list with a search applied. */
+export function useSearchQuery() {
+  const [params, setParams] = useSearchParams()
+  const q = params.get('q') ?? ''
+  const setQ = (v: string) =>
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        if (v) next.set('q', v)
+        else next.delete('q')
+        return next
+      },
+      { replace: true },
+    )
+  return [q, setQ] as const
 }

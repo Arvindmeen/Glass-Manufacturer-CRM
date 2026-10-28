@@ -7,9 +7,10 @@ import { matches } from '../lib/format'
 import { MissingKeyError, type ChatMessage } from '../lib/openai'
 import { useDB } from '../store/db'
 import type { KnowledgeEntry } from '../types'
-import { blankKnowledge, KnowledgeForm, SECTIONS, sectionLabel, structureKnowledge } from '../components/KnowledgeForm'
+import { blankKnowledge, KnowledgeForm, SECTIONS, sectionLabel } from '../components/KnowledgeForm'
 import { StepImage } from '../components/StepImage'
-import { PageHead, SearchInput, Sheet, toast, useClosing } from '../components/ui'
+import { PageHead, SearchInput, Sheet, toast, useClosing, useSearchQuery } from '../components/ui'
+import { flash, useRecent } from '../lib/recent'
 import { VoiceRecorder } from '../components/VoiceRecorder'
 
 export function KnowledgePage() {
@@ -26,7 +27,8 @@ function KnowledgeList() {
   const t = useT()
   const navigate = useNavigate()
   const { knowledge } = useDB()
-  const [q, setQ] = useState('')
+  const [q, setQ] = useSearchQuery()
+  const recent = useRecent()
   const [section, setSection] = useState<string>('')
   const [draft, setDraft] = useState<KnowledgeEntry | null>(null)
   const [chatOpen, setChatOpen] = useState(false)
@@ -52,7 +54,6 @@ function KnowledgeList() {
         }
       />
 
-      <VoiceRecorder big label={t('kb.record')} onText={async (text) => setDraft(await structureKnowledge(text))} />
 
       <div className="section">
         <SearchInput value={q} onChange={setQ} placeholder={t('kb.searchProduct')} />
@@ -66,7 +67,7 @@ function KnowledgeList() {
         <div className="list">
           {list.length === 0 && <div className="empty">{t('common.none')}</div>}
           {list.map((k) => (
-            <button key={k.id} className="list-item" onClick={() => navigate(`/knowledge/${k.id}`)}>
+            <button key={k.id} className={`list-item${flash(recent, k.id)}`} onClick={() => navigate(`/knowledge/${k.id}`)}>
               <div className="grow">
                 <div className="title">{k.title}</div>
                 <div className="sub">{[k.product, t(sectionLabel(k.section))].filter(Boolean).join(' · ')}</div>

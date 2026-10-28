@@ -7,12 +7,14 @@ import { fullName, saveTask, useDB } from '../store/db'
 import type { Meeting, Task, TaskStatus } from '../types'
 import { TaskForm } from './forms'
 import { MeetingForm } from './MeetingForm'
+import { flash, useRecent } from '../lib/recent'
 import { Section } from './ui'
 
 const nextStatus: Record<TaskStatus, TaskStatus> = { planned: 'in_progress', in_progress: 'done', done: 'planned' }
 
 export function TaskCard({ task, showLinks = true, onOpen }: { task: Task; showLinks?: boolean; onOpen: () => void }) {
   const t = useT()
+  const recent = useRecent()
   const locale = useLocale()
   const { companies, people } = useDB()
   const company = companies.find((c) => c.id === task.companyId)
@@ -21,7 +23,7 @@ export function TaskCard({ task, showLinks = true, onOpen }: { task: Task; showL
 
   return (
     <div
-      className={`task${task.status === 'done' ? ' done' : ''}`}
+      className={`task${task.status === 'done' ? ' done' : ''}${flash(recent, task.id)}`}
       onClick={onOpen}
       draggable
       onDragStart={(e) => e.dataTransfer.setData('text/task', task.id)}
@@ -85,6 +87,7 @@ export function TasksSection({ filter, defaults }: { filter: (t: Task) => boolea
 
 export function MeetingsSection({ filter, defaults }: { filter: (m: Meeting) => boolean; defaults: Partial<Meeting> }) {
   const t = useT()
+  const recent = useRecent()
   const locale = useLocale()
   const { meetings, people } = useDB()
   const [editing, setEditing] = useState<{ meeting?: Meeting; voice?: boolean } | null>(null)
@@ -107,7 +110,7 @@ export function MeetingsSection({ filter, defaults }: { filter: (m: Meeting) => 
       <div className="card">
         {list.length === 0 && <div className="empty">{t('common.none')}</div>}
         {list.map((m) => (
-          <div key={m.id} className="meeting" onClick={() => setEditing({ meeting: m })}>
+          <div key={m.id} className={`meeting${flash(recent, m.id)}`} onClick={() => setEditing({ meeting: m })}>
             <div className="meta">
               <span>{formatDate(m.date, locale)}</span>
               {m.personIds.length > 0 && (
@@ -140,11 +143,12 @@ export function MeetingsSection({ filter, defaults }: { filter: (m: Meeting) => 
 
 export function LinkedList({ items }: { items: { id: string; to: string; title: string; sub: string; avatar: React.ReactNode }[] }) {
   const t = useT()
+  const recent = useRecent()
   return (
     <div className="list">
       {items.length === 0 && <div className="empty">{t('common.none')}</div>}
       {items.map((i) => (
-        <Link key={i.id} to={i.to} className="list-item">
+        <Link key={i.id} to={i.to} className={`list-item${flash(recent, i.id)}`}>
           {i.avatar}
           <div className="grow">
             <div className="title">{i.title}</div>

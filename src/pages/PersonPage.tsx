@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { Mail, MessageSquare, Pencil, Phone } from 'lucide-react'
 import { useT } from '../i18n'
+import { flash, useRecent } from '../lib/recent'
 import { fullName, linkPersonCompany, useDB } from '../store/db'
 import { PersonForm } from '../components/forms'
 import { Select } from '../components/Dropdown'
@@ -11,6 +12,7 @@ import { Avatar, PageHead, Section } from '../components/ui'
 
 export function PersonPage() {
   const t = useT()
+  const recent = useRecent()
   const navigate = useNavigate()
   const { id = '' } = useParams()
   const { people, companies } = useDB()
@@ -58,7 +60,7 @@ export function PersonPage() {
 
       {person.notes && (
         <Section title={t('common.notes')}>
-          <div className="card notes">{person.notes}</div>
+          <div className={`card notes${flash(recent, `${id}:notes`)}`}>{person.notes}</div>
         </Section>
       )}
 

@@ -5,13 +5,15 @@ import { useT } from '../i18n'
 import { matches } from '../lib/format'
 import { fullName, useDB } from '../store/db'
 import { PersonForm } from '../components/forms'
-import { Avatar, PageHead, SearchInput } from '../components/ui'
+import { Avatar, PageHead, SearchInput, useSearchQuery } from '../components/ui'
+import { flash, useRecent } from '../lib/recent'
 
 export function PeoplePage() {
   const t = useT()
   const navigate = useNavigate()
   const { people, companies } = useDB()
-  const [q, setQ] = useState('')
+  const [q, setQ] = useSearchQuery()
+  const recent = useRecent()
   const [creating, setCreating] = useState(false)
 
   const companyNames = (ids: string[]) =>
@@ -37,7 +39,7 @@ export function PeoplePage() {
         {list.map((p) => (
           <div
             key={p.id}
-            className="list-item"
+            className={`list-item${flash(recent, p.id)}`}
             role="link"
             tabIndex={0}
             onClick={() => navigate(`/people/${p.id}`)}

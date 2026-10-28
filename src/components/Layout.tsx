@@ -36,13 +36,11 @@ export function Layout() {
   const t = useT()
   const { emails } = useDB()
   const unread = emails.filter((e) => !e.read).length
-  // The voice sheet belongs to the page it was opened on; following a link out of it closes it.
-  const [voicePath, setVoicePath] = useState<string | null>(null)
+  // The assistant stays open while it navigates; it closes itself when the user leaves via a link.
+  const [voiceOpen, setVoiceOpen] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
   const { pathname } = useLocation()
   const moreActive = secondary.some((n) => pathname.startsWith(n.to))
-  const voiceOpen = voicePath === pathname
-  const setVoiceOpen = (open: boolean) => setVoicePath(open ? pathname : null)
 
   const badge = (to: string) =>
     to === '/inbox' && unread > 0 ? <span className="chip danger">{unread}</span> : null
