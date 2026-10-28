@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Navigate, Route, Routes, useNavigate, useParams } from 'react-router-dom'
-import { ChevronRight, Loader2, MessageCircle, Pencil, Plus, Send } from 'lucide-react'
+import { ChevronRight, Loader2, MessageCircle, Mic, Pencil, Plus, Send } from 'lucide-react'
+import { openAssistant } from '../lib/assistantBus'
 import { useT } from '../i18n'
 import { ask } from '../lib/assistant'
 import { matches } from '../lib/format'
@@ -48,6 +49,9 @@ function KnowledgeList() {
           <>
             <button className="btn fab-alt" onClick={() => setChatOpen(true)}>
               <MessageCircle size={18} /> {t('kb.chat')}
+            </button>
+            <button className="btn icon fab-mic" onClick={openAssistant} aria-label={t('kb.record')}>
+              <Mic size={20} />
             </button>
             <button className="btn primary icon fab-main" onClick={() => setDraft(blankKnowledge())} aria-label={t('common.add')}>
               <Plus size={22} />
@@ -124,7 +128,7 @@ function KnowledgeView() {
         <ol className="steps">
           {entry.steps.map((s, i) => (
             <li key={i} className="card">
-              <StepImage n={i + 1} caption={s.image} />
+              <StepImage n={i + 1} caption={s.image} photo={s.photo} />
               <div className="step-text">
                 <strong>{t('kb.step', { n: i + 1 })}</strong>
                 <p>{s.text}</p>

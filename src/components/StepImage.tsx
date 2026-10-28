@@ -1,5 +1,8 @@
-/** Placeholder illustration for a tutorial step (no external images). */
-export function StepImage({ n, caption }: { n: number; caption?: string }) {
+import { isSafeImage } from '../lib/image'
+
+/** Step photo, or a placeholder illustration when none was uploaded (no external images). */
+export function StepImage({ n, caption, photo }: { n: number; caption?: string; photo?: string }) {
+  if (isSafeImage(photo)) return <img src={photo} className="step-image photo" alt={caption ?? ''} loading="lazy" />
   const hue = (n * 37 + 180) % 360
   return (
     <svg viewBox="0 0 320 180" className="step-image" role="img" aria-label={caption}>

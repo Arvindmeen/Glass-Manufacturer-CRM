@@ -4,6 +4,7 @@ import { todayISO } from '../lib/format'
 import { seed } from './seed'
 
 const KEY = 'glasscrm:db:v1'
+export const STORAGE_FULL = 'glasscrm:storage-full'
 
 function load(): DB {
   try {
@@ -30,7 +31,8 @@ function commit(next: DB) {
   try {
     localStorage.setItem(KEY, JSON.stringify(state))
   } catch {
-    // storage full or blocked: keep in-memory state
+    // Storage full or blocked: keep the in-memory state and tell the user.
+    window.dispatchEvent(new Event(STORAGE_FULL))
   }
   listeners.forEach((l) => l())
 }

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import {
   BookOpen,
@@ -13,8 +13,9 @@ import {
   Landmark,
 } from 'lucide-react'
 import { useT, type TKey } from '../i18n'
-import { useDB } from '../store/db'
-import { Sheet, Toaster, useClosing } from './ui'
+import { onOpenAssistant } from '../lib/assistantBus'
+import { STORAGE_FULL, useDB } from '../store/db'
+import { Sheet, toast, Toaster, useClosing } from './ui'
 import { VoiceCommand } from './VoiceCommand'
 
 type NavItem = { to: string; label: TKey; icon: ReactNode }
@@ -41,6 +42,14 @@ export function Layout() {
   const [moreOpen, setMoreOpen] = useState(false)
   const { pathname } = useLocation()
   const moreActive = secondary.some((n) => pathname.startsWith(n.to))
+
+  useEffect(() => onOpenAssistant(() => setVoiceOpen(true)), [])
+
+  useEffect(() => {
+    const warn = () => toast(t('common.storageFull'))
+    window.addEventListener(STORAGE_FULL, warn)
+    return () => window.removeEventListener(STORAGE_FULL, warn)
+  }, [t])
 
   const badge = (to: string) =>
     to === '/inbox' && unread > 0 ? <span className="chip danger">{unread}</span> : null

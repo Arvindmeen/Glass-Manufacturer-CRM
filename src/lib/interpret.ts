@@ -11,6 +11,8 @@ import {
   saveCompany,
   saveMeeting,
   savePerson,
+  deleteTask,
+  linkPersonCompany,
   saveKnowledge,
   saveTask,
   uid,
@@ -24,10 +26,19 @@ export type Proposal =
   | { kind: 'create_company'; ref: Ref; name: string; industry: string; street: string; zip: string; city: string; phone: string; email: string; notes: string; similar?: string[] }
   | { kind: 'create_person'; ref: Ref; firstName: string; lastName: string; role: string; phone: string; email: string; notes: string; companyRefs: Ref[]; similar?: string[] }
   | { kind: 'create_meeting'; date: string; title: string; summary: string; companyRefs: Ref[]; personRefs: Ref[] }
-  | { kind: 'create_task'; title: string; due: string; companyRef?: Ref; personRef?: Ref }
+  | { kind: 'create_task'; title: string; due: string; status: TaskStatus; companyRef?: Ref; personRef?: Ref }
   | { kind: 'add_note'; targetRef: Ref; text: string }
   | { kind: 'create_knowledge'; section: string; title: string; product: string; summary: string; steps: KnowledgeStep[]; tags: string[] }
-  | { kind: 'update_task'; taskId: string; status?: TaskStatus; due?: string; title?: string }
+  | { kind: 'update_task'; taskId: string; status?: TaskStatus; due?: string; title?: string; companyRef?: Ref; personRef?: Ref }
+  | { kind: 'delete_task'; taskId: string }
+  | { kind: 'update_company'; companyId: string; fields: CompanyFields }
+  | { kind: 'update_person'; personId: string; fields: PersonFields }
+  | { kind: 'link_person'; personRef: Ref; companyRef: Ref }
+
+export const COMPANY_FIELDS = ['name', 'industry', 'street', 'zip', 'city', 'phone', 'email', 'website'] as const
+export const PERSON_FIELDS = ['firstName', 'lastName', 'role', 'phone', 'email'] as const
+export type CompanyFields = Partial<Record<(typeof COMPANY_FIELDS)[number], string>>
+export type PersonFields = Partial<Record<(typeof PERSON_FIELDS)[number], string>>
 
 /** Pages the assistant can open. */
 export const PAGES = ['companies', 'companies_map', 'people', 'tasks', 'inbox', 'knowledge', 'leads', 'simap', 'settings'] as const
@@ -38,17 +49,22 @@ export interface Navigation {
   page?: PageKey
   recordId?: string
   query?: string
+  /** Companies to plan a route for (opens the map with the route ready). */
+  routeIds?: string[]
+  /** With an email recordId: start the quote extraction right away. */
+  extract?: boolean
 }
 
 export interface AssistantResult {
   items: ReviewItem[]
   answer: string
   navigate?: Navigation
+  language?: 'de' | 'en'
 }
 
 /** One executed step, shown to the user with a link to where it landed. */
 export interface Step {
-  kind: ProposalKind | 'navigate'
+  kind: ProposalKind | 'navigate' | 'language'
   label: string
   to?: string
   /** Record ids to highlight on the target page. */
@@ -150,6 +166,18 @@ interface RawAction {
 }
 
 const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '')
+const statusOf = (v: unknown) => (['planned', 'in_progress', 'done'] as const).find((x) => x === str(v))
+
+/** Keep only known, actually changed string fields. */
+function pick<K extends string>(raw: unknown, keys: readonly K[], current?: object): Partial<Record<K, string>> {
+  const out: Partial<Record<K, string>> = {}
+  if (!raw || typeof raw !== 'object') return out
+  for (const k of keys) {
+    const v = str((raw as Record<string, unknown>)[k])
+    if (v && v !== (current as Record<string, unknown> | undefined)?.[k]) out[k] = v
+  }
+  return out
+}
 const arr = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [])
 
 function context(db: DB) {
@@ -166,7 +194,8 @@ function context(db: DB) {
     .map((m) => `${m.date} | companies ${m.companyIds.join(',')} | people ${m.personIds.join(',')} | ${m.title}: ${m.summary}`)
     .join('\n')
   const knowledge = db.knowledge.map((k) => `${k.id} | ${k.section} | ${k.title} | ${k.product} | ${k.summary}`).join('\n')
-  return { companies, people, tasks, meetings, knowledge }
+  const emails = db.emails.map((e) => `${e.id} | ${e.fromName} | ${e.subject}${e.isQuote ? ' | quote request' : ''}`).join('\n')
+  return { companies, people, tasks, meetings, knowledge, emails }
 }
 
 function systemPrompt(db: DB, page: string) {
@@ -182,21 +211,30 @@ Rules:
 - Only create a company/person when it clearly does not exist. Give new records a ref like "new:c1" / "new:p1" and use it to link other actions.
 - A meeting is something that already happened ("I just met…", "we discussed…"). Summarise what was discussed, keep all facts, products, quantities and wishes.
 - A task is something to do later ("remind me", "send offer", "call back"). Short imperative title. Resolve relative dates to YYYY-MM-DD, in the future.
-- update_task changes an existing task (done, in progress, new due date, rename). Use the task id.
+- create_task: set status "in_progress" or "done" when the user says so (e.g. "I'm working on…", "I already sent…"), else "planned".
+- update_task changes an existing task (status, due date, title, linked company/person). delete_task removes one. Use the task id.
+- update_company / update_person change stored fields (new phone, email, address, role, name). Only include changed fields.
+- link_person connects an existing or new person to an existing or new company.
 - add_note: lasting facts about an existing company/person (new phone number, preferences).
 - create_knowledge: technical know-how, an installation procedure or a product fact (e.g. a technician explaining how to mount something). Split procedures into steps.
-- navigate: when the user wants to see/open/find something ("open Huber", "show my tasks", "find carpentry shops in Thun", "plan a route"). Use recordId for one record, query to search a list.
+- navigate: when the user wants to see/open/find something ("open Huber", "show my tasks", "find carpentry shops in Thun").
+  Route planning: page "companies_map" with routeIds = the company ids to visit. Quote from an email: recordId = email id and extract = true.
+- language: "de" or "en" only when the user asks to switch the app language. Use recordId for one record, query to search a list.
 - answer: when the user asks a question, answer briefly from the data below. Also give a one-sentence confirmation of what you will do otherwise. Never invent facts.
 - Write text in the language the user spoke. Leave unknown fields as "". Never invent phone numbers or emails.
 
-Return JSON: {"answer": "", "navigate": {"page": "", "recordId": "", "query": ""} or null, "actions": [ ... ]}
+Return JSON: {"answer": "", "navigate": {"page": "", "recordId": "", "query": "", "routeIds": [], "extract": false} or null, "language": "", "actions": [ ... ]}
 pages: ${PAGES.join(', ')}. recordId may be a company, person, knowledge or email id.
 Each action is one of:
 {"type":"create_company","ref":"new:c1","name":"","industry":"","street":"","zip":"","city":"","phone":"","email":"","notes":""}
 {"type":"create_person","ref":"new:p1","firstName":"","lastName":"","role":"","phone":"","email":"","notes":"","companyRefs":["<id or new ref>"]}
 {"type":"create_meeting","date":"YYYY-MM-DD","title":"","summary":"","companyRefs":[],"personRefs":[]}
-{"type":"create_task","title":"","due":"YYYY-MM-DD or empty","companyRef":"","personRef":""}
-{"type":"update_task","taskId":"<existing task id>","status":"planned|in_progress|done or empty","due":"YYYY-MM-DD or empty","title":"or empty"}
+{"type":"create_task","title":"","due":"YYYY-MM-DD or empty","status":"planned|in_progress|done","companyRef":"","personRef":""}
+{"type":"update_task","taskId":"<existing task id>","status":"planned|in_progress|done or empty","due":"YYYY-MM-DD or empty","title":"or empty","companyRef":"","personRef":""}
+{"type":"delete_task","taskId":"<existing task id>"}
+{"type":"update_company","companyId":"<existing id>","fields":{"phone":"", "...": "only changed: ${'${COMPANY_FIELDS.join(", ")}'}"}}
+{"type":"update_person","personId":"<existing id>","fields":{"role":"", "...": "only changed: ${'${PERSON_FIELDS.join(", ")}'}"}}
+{"type":"link_person","personRef":"<id or new ref>","companyRef":"<id or new ref>"}
 {"type":"add_note","targetRef":"<existing company or person id>","text":""}
 {"type":"create_knowledge","section":"installation|products|troubleshooting|sales","title":"","product":"","summary":"","steps":[{"text":""}],"tags":[]}
 
@@ -216,16 +254,20 @@ ${ctx.meetings}
 
 Knowledge (id | section | title | product | summary):
 ${ctx.knowledge}
+
+Inbox (id | from | subject):
+${ctx.emails}
 </crm_data>`
 }
 
 export async function interpret(text: string, page = 'unknown'): Promise<AssistantResult> {
   const db = getDB()
-  const res = await chatJSON<{ actions?: RawAction[]; answer?: unknown; navigate?: Record<string, unknown> | null }>(
+  const res = await chatJSON<{ actions?: RawAction[]; answer?: unknown; navigate?: Record<string, unknown> | null; language?: unknown }>(
     systemPrompt(db, page),
     text,
   )
-  return { items: resolve(db, Array.isArray(res.actions) ? res.actions : []), answer: str(res.answer), navigate: resolveNav(db, res.navigate) }
+  const language = str(res.language) === 'de' || str(res.language) === 'en' ? (str(res.language) as 'de' | 'en') : undefined
+  return { items: resolve(db, Array.isArray(res.actions) ? res.actions : []), answer: str(res.answer), navigate: resolveNav(db, res.navigate), language }
 }
 
 function resolveNav(db: DB, nav?: Record<string, unknown> | null): Navigation | undefined {
@@ -235,8 +277,16 @@ function resolveNav(db: DB, nav?: Record<string, unknown> | null): Navigation | 
   const known =
     db.companies.some((c) => c.id === id) || db.people.some((p) => p.id === id) || db.knowledge.some((k) => k.id === id) || db.emails.some((e) => e.id === id)
   const query = str(nav.query)
-  if (!page && !known) return
-  return { page, recordId: known ? id : undefined, query: query || undefined }
+  const routeIds = arr(nav.routeIds).filter((x) => db.companies.some((c) => c.id === x))
+  const extract = nav.extract === true && db.emails.some((e) => e.id === id && e.isQuote)
+  if (!page && !known && routeIds.length < 2) return
+  return {
+    page: routeIds.length >= 2 ? 'companies_map' : page,
+    recordId: known ? id : undefined,
+    query: query || undefined,
+    routeIds: routeIds.length >= 2 ? routeIds : undefined,
+    extract: extract || undefined,
+  }
 }
 
 /** URL for a navigation target. */
@@ -247,8 +297,9 @@ export function pathFor(nav: Navigation): string {
     if (db.companies.some((c) => c.id === id)) return `/companies/${id}`
     if (db.people.some((p) => p.id === id)) return `/people/${id}`
     if (db.knowledge.some((k) => k.id === id)) return `/knowledge/${id}`
-    if (db.emails.some((e) => e.id === id)) return `/inbox/${id}`
+    if (db.emails.some((e) => e.id === id)) return `/inbox/${id}${nav.extract ? '?extract=1' : ''}`
   }
+  if (nav.routeIds?.length) return `/companies?view=map&route=${nav.routeIds.join(',')}`
   const q = nav.query ? `q=${encodeURIComponent(nav.query)}` : ''
   switch (nav.page) {
     case 'companies_map':
@@ -270,6 +321,7 @@ export function navLabel(nav: Navigation, pageName: (p: PageKey) => string): str
     db.knowledge.find((k) => k.id === id)?.title ??
     db.emails.find((e) => e.id === id)?.subject
   if (rec) return rec
+  if (nav.routeIds?.length) return `${pageName('companies_map')}: ${nav.routeIds.map((x) => db.companies.find((c) => c.id === x)?.name).join(' → ')}`
   const page = pageName(nav.page ?? 'companies')
   return nav.query ? `${page}: “${nav.query}”` : page
 }
@@ -326,6 +378,7 @@ export function resolve(db: DB, actions: RawAction[]): ReviewItem[] {
         if (!str(a.title)) break
         proposals.push({
           kind: 'create_task', title: str(a.title), due: /^\d{4}-\d{2}-\d{2}$/.test(str(a.due)) ? str(a.due) : '',
+          status: statusOf(a.status) ?? 'planned',
           companyRef: str(a.companyRef) || undefined, personRef: str(a.personRef) || undefined,
         })
         break
@@ -335,12 +388,33 @@ export function resolve(db: DB, actions: RawAction[]): ReviewItem[] {
       case 'update_task': {
         const task = db.tasks.find((x) => x.id === str(a.taskId))
         if (!task) break
-        const status = (['planned', 'in_progress', 'done'] as const).find((x) => x === str(a.status))
+        const status = statusOf(a.status)
         const due = /^\d{4}-\d{2}-\d{2}$/.test(str(a.due)) ? str(a.due) : undefined
         const title = str(a.title) || undefined
-        if (status || due || title) proposals.push({ kind: 'update_task', taskId: task.id, status, due, title })
+        const companyRef = str(a.companyRef) || undefined
+        const personRef = str(a.personRef) || undefined
+        if (status || due || title || companyRef || personRef)
+          proposals.push({ kind: 'update_task', taskId: task.id, status, due, title, companyRef, personRef })
         break
       }
+      case 'delete_task':
+        if (db.tasks.some((x) => x.id === str(a.taskId))) proposals.push({ kind: 'delete_task', taskId: str(a.taskId) })
+        break
+      case 'update_company': {
+        const c = db.companies.find((x) => x.id === str(a.companyId))
+        const fields = pick(a.fields, COMPANY_FIELDS, c)
+        if (c && Object.keys(fields).length) proposals.push({ kind: 'update_company', companyId: c.id, fields })
+        break
+      }
+      case 'update_person': {
+        const p = db.people.find((x) => x.id === str(a.personId))
+        const fields = pick(a.fields, PERSON_FIELDS, p)
+        if (p && Object.keys(fields).length) proposals.push({ kind: 'update_person', personId: p.id, fields })
+        break
+      }
+      case 'link_person':
+        if (str(a.personRef) && str(a.companyRef)) proposals.push({ kind: 'link_person', personRef: str(a.personRef), companyRef: str(a.companyRef) })
+        break
       case 'create_knowledge': {
         const sections = ['installation', 'products', 'troubleshooting', 'sales']
         const steps = (Array.isArray(a.steps) ? a.steps : [])
@@ -367,7 +441,13 @@ export function resolve(db: DB, actions: RawAction[]): ReviewItem[] {
         case 'create_meeting':
           return { ...p, companyRefs: clean(p.companyRefs), personRefs: clean(p.personRefs) }
         case 'create_task':
+        case 'update_task':
           return { ...p, companyRef: one(p.companyRef), personRef: one(p.personRef) }
+        case 'link_person': {
+          const personRef = one(p.personRef)
+          const companyRef = one(p.companyRef)
+          return personRef && companyRef ? { ...p, personRef, companyRef } : null
+        }
         case 'add_note': {
           const target = one(p.targetRef)
           return target ? { ...p, targetRef: target } : null
@@ -431,13 +511,43 @@ export function applyProposals(items: ReviewItem[], label: (kind: ProposalKind) 
       const to = companyPath(m.companyIds[0]) ?? (m.personIds[0] ? `/people/${m.personIds[0]}` : undefined)
       step(p.kind, m.title, to, [m.id])
     } else if (p.kind === 'create_task') {
-      const task = saveTask(blankTask({ title: p.title, due: p.due, companyId: resolveRef(p.companyRef), personId: resolveRef(p.personRef) }))
+      const task = saveTask(blankTask({ title: p.title, due: p.due, status: p.status, companyId: resolveRef(p.companyRef), personId: resolveRef(p.personRef) }))
       step(p.kind, task.title, companyPath(task.companyId) ?? (task.personId ? `/people/${task.personId}` : '/tasks'), [task.id])
     } else if (p.kind === 'update_task') {
       const task = db.tasks.find((x) => x.id === p.taskId)
       if (!task) continue
-      const next = saveTask({ ...task, status: p.status ?? task.status, due: p.due ?? task.due, title: p.title ?? task.title })
+      const next = saveTask({
+        ...task,
+        status: p.status ?? task.status,
+        due: p.due ?? task.due,
+        title: p.title ?? task.title,
+        companyId: resolveRef(p.companyRef) ?? task.companyId,
+        personId: resolveRef(p.personRef) ?? task.personId,
+      })
       step(p.kind, next.title, '/tasks', [next.id])
+    } else if (p.kind === 'delete_task') {
+      const task = db.tasks.find((x) => x.id === p.taskId)
+      if (!task) continue
+      deleteTask(task.id)
+      step(p.kind, task.title, '/tasks', [])
+    } else if (p.kind === 'update_company') {
+      const c = db.companies.find((x) => x.id === p.companyId)
+      if (!c) continue
+      saveCompany({ ...c, ...p.fields })
+      step(p.kind, p.fields.name ?? c.name, `/companies/${c.id}`, [c.id])
+    } else if (p.kind === 'update_person') {
+      const person = db.people.find((x) => x.id === p.personId)
+      if (!person) continue
+      const next = savePerson({ ...person, ...p.fields })
+      step(p.kind, fullName(next), `/people/${next.id}`, [next.id])
+    } else if (p.kind === 'link_person') {
+      const personId = resolveRef(p.personRef)
+      const companyId = resolveRef(p.companyRef)
+      if (!personId || !companyId) continue
+      linkPersonCompany(personId, companyId, true)
+      const person = getDB().people.find((x) => x.id === personId)
+      const company = getDB().companies.find((x) => x.id === companyId)
+      step(p.kind, `${person ? fullName(person) : ''} → ${company?.name ?? ''}`, `/companies/${companyId}`, [personId])
     } else if (p.kind === 'add_note') {
       const target = resolveRef(p.targetRef)
       if (!target) continue
@@ -470,7 +580,10 @@ export function replaceWithExisting(items: ReviewItem[], ref: Ref, existingId: s
         case 'create_meeting':
           return { ...i, proposal: { ...p, companyRefs: swapAll(p.companyRefs), personRefs: swapAll(p.personRefs) } }
         case 'create_task':
+        case 'update_task':
           return { ...i, proposal: { ...p, companyRef: swap(p.companyRef), personRef: swap(p.personRef) } }
+        case 'link_person':
+          return { ...i, proposal: { ...p, companyRef: swap(p.companyRef)!, personRef: swap(p.personRef)! } }
         default:
           return i
       }

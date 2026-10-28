@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { CheckCircle2, ChevronLeft, FileSearch, Loader2, Pencil, Plus, Send, Trash2 } from 'lucide-react'
 import { ERP_NAME } from '../config'
 import { useLocale, useT } from '../i18n'
@@ -120,6 +120,16 @@ function EmailView({ email }: { email: Email }) {
       setBusy(null)
     }
   }
+
+  // The assistant opens a quote email with ?extract=1: start the extraction right away.
+  const [params, setParams] = useSearchParams()
+  const autoExtract = params.get('extract') === '1'
+  useEffect(() => {
+    if (!autoExtract) return
+    setParams({}, { replace: true })
+    if (email.isQuote && !email.quote) void extract()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoExtract])
 
   const transfer = () => {
     setBusy('transfer')

@@ -3,7 +3,9 @@ import { Plus, Trash2 } from 'lucide-react'
 import { useT, type TKey } from '../i18n'
 import { deleteKnowledge, saveKnowledge, uid } from '../store/db'
 import type { KnowledgeEntry } from '../types'
+import { isSafeImage } from '../lib/image'
 import { Select } from './Dropdown'
+import { PhotoPicker } from './PhotoPicker'
 import { Field, Sheet, useClosing } from './ui'
 
 export const SECTIONS = ['installation', 'products', 'troubleshooting', 'sales'] as const
@@ -40,6 +42,8 @@ export function KnowledgeForm({
   const [tags, setTags] = useState(entry.tags.join(', '))
   const setStep = (n: number, text: string) =>
     setD({ ...d, steps: d.steps.map((s, k) => (k === n ? { ...s, text } : s)) })
+  const setPhoto = (n: number, photo: string | undefined) =>
+    setD({ ...d, steps: d.steps.map((s, k) => (k === n ? { ...s, photo } : s)) })
 
   return (
     <Sheet
@@ -71,7 +75,7 @@ export function KnowledgeForm({
             onClick={() => {
               const saved = saveKnowledge({
                 ...d,
-                steps: d.steps.filter((s) => s.text.trim()),
+                steps: d.steps.filter((s) => s.text.trim() || s.photo),
                 tags: tags.split(',').map((x) => x.trim()).filter(Boolean),
               })
               onSaved?.(saved)
@@ -105,7 +109,15 @@ export function KnowledgeForm({
         </Field>
         {d.steps.map((s, n) => (
           <Field key={n} label={t('kb.step', { n: n + 1 })}>
-            <div className="row-gap" style={{ flexWrap: 'nowrap', alignItems: 'flex-start' }}>
+            <div className="step-edit">
+              {isSafeImage(s.photo) ? (
+                <button type="button" className="step-thumb" onClick={() => setPhoto(n, undefined)} aria-label={t('kb.removePhoto')}>
+                  <img src={s.photo} alt="" />
+                  <span>×</span>
+                </button>
+              ) : (
+                <PhotoPicker iconOnly onPhotos={([p]) => setPhoto(n, p)} />
+              )}
               <textarea className="textarea" rows={2} style={{ minHeight: 60 }} value={s.text} onChange={(e) => setStep(n, e.target.value)} />
               <button
                 className="btn ghost icon"
@@ -117,9 +129,12 @@ export function KnowledgeForm({
             </div>
           </Field>
         ))}
-        <button className="btn small" style={{ justifySelf: 'start' }} onClick={() => setD({ ...d, steps: [...d.steps, { text: '' }] })}>
-          <Plus size={16} /> {t('kb.addStep')}
-        </button>
+        <div className="row-gap">
+          <button className="btn small" onClick={() => setD({ ...d, steps: [...d.steps, { text: '' }] })}>
+            <Plus size={16} /> {t('kb.addStep')}
+          </button>
+          <PhotoPicker multiple label={t('kb.addPhotos')} onPhotos={(photos) => setD({ ...d, steps: [...d.steps, ...photos.map((photo) => ({ text: '', photo }))] })} />
+        </div>
         <Field label={t('kb.tags')}>
           <input className="input" value={tags} onChange={(e) => setTags(e.target.value)} />
         </Field>

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Check, ChevronRight, Loader2, Navigation, Plus, Route } from 'lucide-react'
 import { useT } from '../i18n'
@@ -45,9 +45,9 @@ export function CompaniesPage() {
     setFocus(on ? null : c)
   }
 
-  const plan = async () => {
+  const plan = async (ids = selected) => {
     setPlanning(true)
-    const chosen = selected.map((id) => companies.find((c) => c.id === id)).filter((c): c is Company => !!c)
+    const chosen = ids.map((id) => companies.find((c) => c.id === id)).filter((c): c is Company => !!c)
     const stops = chosen.filter((c) => locate(c))
     const unlocated = chosen.filter((c) => !locate(c))
     const points = stops.map((c) => locate(c)!)
@@ -58,6 +58,18 @@ export function CompaniesPage() {
     setRoute({ stops: [...r.order.map((i) => stops[i]), ...unlocated], km: r.km, start })
     setPlanning(false)
   }
+
+  // The assistant opens the map with ?route=c1,c6: select those stops and plan right away.
+  const routeParam = params.get('route')
+  useEffect(() => {
+    if (!routeParam) return
+    const ids = routeParam.split(',').filter((id) => companies.some((c) => c.id === id))
+    setParams((p) => { const n = new URLSearchParams(p); n.delete('route'); return n }, { replace: true })
+    if (ids.length < 2) return
+    setSelected(ids)
+    void plan(ids)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeParam])
 
   const mapSrc = route
     ? embedRoute(route.stops.map(addressOf), route.start)

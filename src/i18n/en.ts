@@ -103,6 +103,11 @@ export const en = {
   'voice.assistant': 'Assistant',
   'voice.again': 'Speak again',
   'step.open': 'Opening {name}',
+  'proposal.delete_task': 'Delete task',
+  'proposal.update_company': 'Update company',
+  'proposal.update_person': 'Update person',
+  'proposal.link_person': 'Link person',
+  'voice.attach': 'Attach photos',
   'proposal.existing': 'Existing',
   'proposal.accept': 'Accept',
   'proposal.reject': 'Reject',
@@ -129,6 +134,11 @@ export const en = {
   'kb.tags': 'Tags',
   'kb.step': 'Step {n}',
   'kb.summary': 'Summary',
+  'kb.addPhoto': 'Photo',
+  'kb.addPhotos': 'Add photos',
+  'kb.removePhoto': 'Remove photo',
+  'kb.photoError': 'This photo could not be read.',
+  'common.storageFull': 'Device storage is full. Remove some photos.',
   'kb.addStep': 'Add step',
 
   // inbox

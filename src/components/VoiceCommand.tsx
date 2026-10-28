@@ -14,11 +14,15 @@ import {
   RefreshCw,
   Send,
   StickyNote,
+  Trash2,
   User,
   X,
+  Link2,
+  Languages,
 } from 'lucide-react'
 import { useLocale, useT, type TKey } from '../i18n'
 import { formatDate } from '../lib/format'
+import { isSafeImage } from '../lib/image'
 import {
   applyProposals,
   interpret,
@@ -31,19 +35,23 @@ import {
   type Ref,
   type ReviewItem,
   type Step,
+  COMPANY_FIELDS,
+  PERSON_FIELDS,
 } from '../lib/interpret'
 import { aiErrorMessage } from '../lib/aiError'
 import { checkInput, GuardError } from '../lib/guard'
 import { markRecent } from '../lib/recent'
 import { fullName, getDB, useDB } from '../store/db'
+import { updateSettings } from '../store/settings'
 import type { TaskStatus } from '../types'
 import { DatePicker, Select, type Option } from './Dropdown'
 import { companyOptions as companyOptionsOf, personOptions as personOptionsOf } from './options'
 import { ErrorText, Field, Sheet, useClosing } from './ui'
+import { PhotoPicker } from './PhotoPicker'
 import { VoiceBar } from './VoiceBar'
 import { VoiceRecorder } from './VoiceRecorder'
 
-const icons: Record<Proposal['kind'] | 'navigate', ReactNode> = {
+const icons: Record<Proposal['kind'] | 'navigate' | 'language', ReactNode> = {
   create_company: <Building2 size={18} />,
   create_person: <User size={18} />,
   create_meeting: <Calendar size={18} />,
@@ -51,7 +59,12 @@ const icons: Record<Proposal['kind'] | 'navigate', ReactNode> = {
   update_task: <ListChecks size={18} />,
   add_note: <StickyNote size={18} />,
   create_knowledge: <BookOpen size={18} />,
+  delete_task: <Trash2 size={18} />,
+  update_company: <Building2 size={18} />,
+  update_person: <User size={18} />,
+  link_person: <Link2 size={18} />,
   navigate: <NavIcon size={18} />,
+  language: <Languages size={18} />,
 }
 
 const pageKeys: Record<PageKey, TKey> = {
@@ -106,6 +119,7 @@ export function VoiceCommand({ onClose }: { onClose: () => void }) {
   const [busy, setBusy] = useState(false)
   const [typedRun, setTypedRun] = useState(false)
   const [error, setError] = useState('')
+  const [photos, setPhotos] = useState<string[]>([])
 
   // Leaving the page by hand (e.g. the Settings link in an error) closes the assistant;
   // its own navigation happens in the "done" phase and keeps it open.
@@ -117,6 +131,32 @@ export function VoiceCommand({ onClose }: { onClose: () => void }) {
   const pageName = (p: PageKey) => t(pageKeys[p])
   const navStep = (r: AssistantResult): Step | null =>
     r.navigate ? { kind: 'navigate', label: t('step.open', { name: navLabel(r.navigate, pageName) }), to: pathFor(r.navigate), highlight: [] } : null
+  /** Steps that need no review: switch language, then open the target. */
+  const commandSteps = (r: AssistantResult | null): Step[] => {
+    if (!r) return []
+    const out: Step[] = []
+    if (r.language) {
+      updateSettings({ lang: r.language })
+      out.push({ kind: 'language', label: `${t('settings.language')} · ${r.language === 'de' ? 'Deutsch' : 'English'}`, highlight: [] })
+    }
+    const nav = navStep(r)
+    if (nav) out.push(nav)
+    return out
+  }
+
+  /** Attached photos go onto the steps of a new knowledge entry (extra photos become extra steps). */
+  const withPhotos = (list: ReviewItem[]): ReviewItem[] => {
+    if (!photos.length) return list
+    let used = false
+    const out = list.map((i) => {
+      if (used || i.proposal.kind !== 'create_knowledge') return i
+      used = true
+      const steps = [...i.proposal.steps]
+      photos.forEach((photo, n) => (steps[n] = { text: steps[n]?.text ?? '', photo }))
+      return { ...i, proposal: { ...i.proposal, steps } }
+    })
+    return out
+  }
 
   const finish = (done: Step[]) => {
     setSteps(done)
@@ -135,13 +175,10 @@ export function VoiceCommand({ onClose }: { onClose: () => void }) {
       if (refused) throw new GuardError(refused)
       const r = await interpret(text, page)
       setResult(r)
-      setItems(r.items)
+      setItems(withPhotos(r.items))
       if (r.items.length) setPhase('review')
-      else {
-        // Nothing to change: just answer and/or open the page.
-        const nav = navStep(r)
-        finish(nav ? [nav] : [])
-      }
+      // Nothing to change: just answer, switch language and/or open the page.
+      else finish(commandSteps(r))
     } catch (e) {
       setError(aiErrorMessage(e, t))
     } finally {
@@ -151,8 +188,7 @@ export function VoiceCommand({ onClose }: { onClose: () => void }) {
 
   const save = () => {
     const done = applyProposals(items, (k) => t(`proposal.${k}`))
-    const nav = result && navStep(result)
-    finish(nav ? [...done, nav] : done)
+    finish([...done, ...commandSteps(result)])
   }
 
   const reset = () => {
@@ -161,6 +197,7 @@ export function VoiceCommand({ onClose }: { onClose: () => void }) {
     setItems([])
     setSteps([])
     setTyped('')
+    setPhotos([])
   }
 
   const update = (key: string, patch: Partial<ReviewItem>) =>
@@ -199,10 +236,21 @@ export function VoiceCommand({ onClose }: { onClose: () => void }) {
               disabled={busy}
               enterKeyHint="send"
             />
+            <PhotoPicker iconOnly multiple label={t('voice.attach')} onPhotos={(p) => setPhotos((x) => [...x, ...p].slice(0, 8))} />
             <button className="btn icon" type="submit" disabled={busy || !typed.trim()} aria-label={t('common.done')}>
               <Send size={18} />
             </button>
           </form>
+          {photos.length > 0 && (
+            <div className="photo-strip">
+              {photos.map((src, i) => (
+                <button key={i} type="button" className="step-thumb" onClick={() => setPhotos((x) => x.filter((_, k) => k !== i))} aria-label={t('kb.removePhoto')}>
+                  <img src={src} alt="" />
+                  <span>×</span>
+                </button>
+              ))}
+            </div>
+          )}
           <ErrorText msg={error} noKeyMsg={t('voice.noKey')} />
         </div>
       </Sheet>
@@ -376,7 +424,7 @@ function ProposalCard({
   const locale = useLocale()
   const [editing, setEditing] = useState(false)
   const refs = useRefs(items)
-  const { tasks } = useDB()
+  const { tasks, companies, people } = useDB()
   const p = item.proposal
   const set = (patch: Partial<Proposal>) => onChange({ proposal: { ...p, ...patch } as Proposal })
 
@@ -488,6 +536,7 @@ function ProposalCard({
         <>
           <div className="title">{p.title}</div>
           <div className="chips" style={{ marginTop: 6 }}>
+            <span className="chip">{t(`task.${p.status}`)}</span>
             {p.due && <span className="chip warn">{formatDate(p.due, locale, { weekday: 'short' })}</span>}
             {chip(p.companyRef)}
             {chip(p.personRef)}
@@ -499,9 +548,19 @@ function ProposalCard({
           <Field label={t('field.title')}>
             <input className="input" value={p.title} onChange={(e) => set({ title: e.target.value })} />
           </Field>
-          <Field label={t('field.due')} group>
-            <DatePicker label={t('field.due')} value={p.due} onChange={(due) => set({ due })} clearable quick />
-          </Field>
+          <div className="row">
+            <Field label={t('field.due')} group>
+              <DatePicker label={t('field.due')} value={p.due} onChange={(due) => set({ due })} clearable quick />
+            </Field>
+            <Field label={t('field.status')} group>
+              <Select
+                label={t('field.status')}
+                value={p.status}
+                options={(['planned', 'in_progress', 'done'] as const).map((x) => ({ value: x, label: t(`task.${x}`) }))}
+                onChange={(v) => v && set({ status: v as TaskStatus })}
+              />
+            </Field>
+          </div>
           <div className="row">
             <Field label={t('field.company')} group>
               <RefSelect label={t('field.company')} value={p.companyRef} options={refs.companyOptions} onChange={(v) => set({ companyRef: v })} />
@@ -545,10 +604,19 @@ function ProposalCard({
           {p.summary && <div className="small" style={{ marginTop: 4 }}>{p.summary}</div>}
           {p.steps.length > 0 && (
             <ol className="small kb-steps-preview">
-              {p.steps.map((st, i) => (
+              {p.steps.filter((st) => st.text).map((st, i) => (
                 <li key={i}>{st.text}</li>
               ))}
             </ol>
+          )}
+          {p.steps.some((st) => st.photo) && (
+            <div className="photo-strip" style={{ marginTop: 8 }}>
+              {p.steps.filter((st) => isSafeImage(st.photo)).map((st, i) => (
+                <span key={i} className="step-thumb">
+                  <img src={st.photo} alt="" />
+                </span>
+              ))}
+            </div>
           )}
         </>
       )
@@ -578,10 +646,69 @@ function ProposalCard({
               className="textarea"
               rows={Math.max(3, p.steps.length + 1)}
               value={p.steps.map((st) => st.text).join('\n')}
-              onChange={(e) => set({ steps: e.target.value.split('\n').map((text) => ({ text })) })}
+              onChange={(e) =>
+                set({ steps: e.target.value.split('\n').map((text, i) => ({ text, photo: p.steps[i]?.photo })) })
+              }
             />
           </Field>
         </>
+      )
+      break
+    case 'delete_task': {
+      const task = tasks.find((x) => x.id === p.taskId)
+      summary = <div className="title" style={{ textDecoration: 'line-through' }}>{task?.title}</div>
+      form = summary
+      break
+    }
+    case 'update_company':
+    case 'update_person': {
+      const keys = p.kind === 'update_company' ? COMPANY_FIELDS : PERSON_FIELDS
+      const record = (p.kind === 'update_company' ? companies.find((c) => c.id === p.companyId) : people.find((x) => x.id === p.personId)) as
+        | Record<string, unknown>
+        | undefined
+      const name = p.kind === 'update_company' ? (record?.name as string) : record ? fullName(record as never) : ''
+      const fields = p.fields as Record<string, string>
+      const setField = (k: string, v: string) => set({ fields: { ...fields, [k]: v } } as Partial<Proposal>)
+      summary = (
+        <>
+          <div className="title">{name}</div>
+          <div className="field-changes">
+            {Object.entries(fields).map(([k, v]) => (
+              <div key={k} className="small">
+                <span className="muted">{t(`field.${k}` as TKey)}:</span> {record?.[k] ? <s className="muted">{String(record[k])}</s> : null} <strong>{v}</strong>
+              </div>
+            ))}
+          </div>
+        </>
+      )
+      form = (
+        <>
+          {keys
+            .filter((k) => k in fields)
+            .map((k) => (
+              <Field key={k} label={t(`field.${k}` as TKey)}>
+                <input className="input" value={fields[k] ?? ''} onChange={(e) => setField(k, e.target.value)} />
+              </Field>
+            ))}
+        </>
+      )
+      break
+    }
+    case 'link_person':
+      summary = (
+        <div className="chips">
+          {chip(p.personRef)} → {chip(p.companyRef)}
+        </div>
+      )
+      form = (
+        <div className="row">
+          <Field label={t('field.person')} group>
+            <RefSelect label={t('field.person')} value={p.personRef} options={refs.personOptions} onChange={(v) => v && set({ personRef: v })} />
+          </Field>
+          <Field label={t('field.company')} group>
+            <RefSelect label={t('field.company')} value={p.companyRef} options={refs.companyOptions} onChange={(v) => v && set({ companyRef: v })} />
+          </Field>
+        </div>
       )
       break
     case 'update_task': {
@@ -596,6 +723,8 @@ function ProposalCard({
               </span>
             )}
             {p.due && <span className="chip warn">{formatDate(p.due, locale, { weekday: 'short' })}</span>}
+            {chip(p.companyRef)}
+            {chip(p.personRef)}
           </div>
         </>
       )
@@ -604,6 +733,14 @@ function ProposalCard({
           <Field label={t('field.title')}>
             <input className="input" value={p.title ?? task?.title ?? ''} onChange={(e) => set({ title: e.target.value })} />
           </Field>
+          <div className="row">
+            <Field label={t('field.company')} group>
+              <RefSelect label={t('field.company')} value={p.companyRef ?? task?.companyId} options={refs.companyOptions} onChange={(v) => set({ companyRef: v })} />
+            </Field>
+            <Field label={t('field.person')} group>
+              <RefSelect label={t('field.person')} value={p.personRef ?? task?.personId} options={refs.personOptions} onChange={(v) => set({ personRef: v })} />
+            </Field>
+          </div>
           <div className="row">
             <Field label={t('field.status')} group>
               <Select
@@ -630,9 +767,11 @@ function ProposalCard({
           {icons[p.kind]} {t(`proposal.${p.kind}`)}
         </span>
         <div className="row-gap" style={{ gap: 4 }}>
-          <button className="btn ghost icon small" onClick={() => setEditing((e) => !e)} aria-label={t('common.edit')}>
-            <Pencil size={16} />
-          </button>
+          {p.kind !== 'delete_task' && (
+            <button className="btn ghost icon small" onClick={() => setEditing((e) => !e)} aria-label={t('common.edit')}>
+              <Pencil size={16} />
+            </button>
+          )}
           <button
             className={`btn icon small${item.accepted ? '' : ' danger'}`}
             onClick={() => onChange({ accepted: false })}

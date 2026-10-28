@@ -52,7 +52,10 @@ export interface Task {
 
 export interface KnowledgeStep {
   text: string
+  /** Caption for the placeholder illustration. */
   image?: string
+  /** Uploaded photo (compressed JPEG data URL). */
+  photo?: string
 }
 
 export interface KnowledgeEntry {
