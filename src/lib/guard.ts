@@ -64,7 +64,8 @@ export const hasForeignScript = (text: string) => FOREIGN_SCRIPT.test(text)
 
 export const languageRule = (appLang: 'de' | 'en') => `
 
-Language rule (highest priority): write only in English or German. Use German if the user writes German, otherwise ${appLang === 'de' ? 'German' : 'English'}. Never use any other language or script, even if names or data look foreign.`
+Language rule (highest priority): the user may speak or write any language (speech recognition may also render names in another script, e.g. "انا میئر" = "Anna Meier"). Understand it and match names to the CRM data.
+Always write your answer and every text field only in English or German: German if the user wrote German, otherwise ${appLang === 'de' ? 'German' : 'English'}. Translate content from other languages. Never output any other language or script.`
 
 /* ---------- 3. output ---------- */
 

@@ -49,8 +49,8 @@ export async function transcribe(audio: Blob): Promise<string> {
     const form = new FormData()
     form.append('file', audio, `voice.${extFor(audio.type)}`)
     form.append('model', model)
-    // A fixed language stops short clips (often just a name) from being misdetected as e.g. Urdu.
-    form.append('language', getSettings().lang)
+    // Any spoken language is accepted (detected automatically); CRM names help spell names right.
+    // The answer is always written in English or German (see languageRule).
     form.append('prompt', vocabulary())
     const res = await fetch(`${BASE}/audio/transcriptions`, {
       ...SAFE_FETCH,
@@ -58,11 +58,7 @@ export async function transcribe(audio: Blob): Promise<string> {
       headers: { Authorization: `Bearer ${k}` },
       body: form,
     })
-    if (res.ok) {
-      const text = ((await res.json()) as { text: string }).text.trim()
-      if (hasForeignScript(text)) throw new GuardError('language')
-      return text
-    }
+    if (res.ok) return ((await res.json()) as { text: string }).text.trim()
     lastError = await failure(res)
     if (res.status === 401) break
   }

@@ -45,7 +45,7 @@ export function MeetingForm({
     const list = candidates.map((p) => `${p.id}: ${fullName(p)} (${p.role})`).join('\n')
     const r = await chatJSON<VoiceMeeting>(
       `You turn a sales rep's spoken meeting note into a CRM meeting record.
-Today is ${todayISO()}. Write in English or German, matching the note.
+Today is ${todayISO()}. Write in English or German (see language rule), translating if the note is in another language.
 Return JSON: {"title": short title (max 6 words), "summary": concise summary of what was discussed, keep all facts, numbers, products and agreements, use short lines, "date": "YYYY-MM-DD" only if a meeting date is mentioned, "participantIds": ids from the candidate list that took part}.
 Candidates:
 ${list || '(none)'}`,
