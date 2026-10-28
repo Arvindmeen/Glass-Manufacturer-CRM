@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import {
   BookOpen,
@@ -36,13 +36,13 @@ export function Layout() {
   const t = useT()
   const { emails } = useDB()
   const unread = emails.filter((e) => !e.read).length
-  const [voiceOpen, setVoiceOpen] = useState(false)
+  // The voice sheet belongs to the page it was opened on; following a link out of it closes it.
+  const [voicePath, setVoicePath] = useState<string | null>(null)
   const [moreOpen, setMoreOpen] = useState(false)
   const { pathname } = useLocation()
   const moreActive = secondary.some((n) => pathname.startsWith(n.to))
-
-  // Following a link out of the voice sheet (e.g. to Settings) closes it.
-  useEffect(() => setVoiceOpen(false), [pathname])
+  const voiceOpen = voicePath === pathname
+  const setVoiceOpen = (open: boolean) => setVoicePath(open ? pathname : null)
 
   const badge = (to: string) =>
     to === '/inbox' && unread > 0 ? <span className="chip danger">{unread}</span> : null

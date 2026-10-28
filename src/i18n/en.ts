@@ -26,6 +26,10 @@ export const en = {
   'common.email': 'Email',
   'common.navigate': 'Navigate',
   'common.today': 'Today',
+  'common.clear': 'Clear',
+  'date.today': 'Today',
+  'date.tomorrow': 'Tomorrow',
+  'date.inWeek': 'In 1 week',
   'common.overdue': 'Overdue',
 
   // fields

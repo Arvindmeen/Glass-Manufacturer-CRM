@@ -6,6 +6,8 @@ import { mapsSearchUrl } from '../lib/format'
 import { addressOf } from '../lib/geo'
 import { fullName, linkPersonCompany, useDB } from '../store/db'
 import { CompanyForm, PersonForm } from '../components/forms'
+import { Select } from '../components/Dropdown'
+import { personOptions } from '../components/options'
 import { LinkedList, MeetingsSection, TasksSection } from '../components/related'
 import { Avatar, PageHead, Section } from '../components/ui'
 
@@ -81,20 +83,12 @@ export function CompanyPage() {
         action={
           <div className="row-gap">
             {others.length > 0 && (
-              <select
-                className="select"
-                style={{ minHeight: 32, padding: '4px 8px', width: 'auto', maxWidth: 170, fontSize: '0.875rem' }}
-                value=""
-                onChange={(e) => e.target.value && linkPersonCompany(e.target.value, id, true)}
-                aria-label={t('company.linkPerson')}
-              >
-                <option value="">{t('company.linkPerson')}</option>
-                {others.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {fullName(p)}
-                  </option>
-                ))}
-              </select>
+              <Select
+                variant="add"
+                label={t('company.linkPerson')}
+                options={personOptions(others, companies)}
+                onChange={(v) => v && linkPersonCompany(v, id, true)}
+              />
             )}
             <button className="btn small" onClick={() => setAddingPerson(true)} aria-label={t('person.new')}>
               <Plus size={16} />

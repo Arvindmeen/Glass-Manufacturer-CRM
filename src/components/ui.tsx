@@ -56,12 +56,14 @@ export function Sheet({
   )
 }
 
-export function Field({ label, children }: { label: string; children: ReactNode }) {
+/** Labelled form row. Use `group` when it holds buttons (chips, pickers) rather than one input. */
+export function Field({ label, children, group }: { label: string; children: ReactNode; group?: boolean }) {
+  const Tag = group ? 'div' : 'label'
   return (
-    <label className="field">
+    <Tag className="field" role={group ? 'group' : undefined} aria-label={group ? label : undefined}>
       <span>{label}</span>
       {children}
-    </label>
+    </Tag>
   )
 }
 

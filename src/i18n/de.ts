@@ -26,6 +26,10 @@ export const de: Record<TKey, string> = {
   'common.email': 'E-Mail',
   'common.navigate': 'Navigieren',
   'common.today': 'Heute',
+  'common.clear': 'Löschen',
+  'date.today': 'Heute',
+  'date.tomorrow': 'Morgen',
+  'date.inWeek': 'In 1 Woche',
   'common.overdue': 'Überfällig',
 
   'field.name': 'Name',

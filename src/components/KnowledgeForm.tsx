@@ -4,6 +4,7 @@ import { useT, type TKey } from '../i18n'
 import { chatJSON } from '../lib/openai'
 import { deleteKnowledge, saveKnowledge, uid } from '../store/db'
 import type { KnowledgeEntry } from '../types'
+import { Select } from './Dropdown'
 import { Field, Sheet } from './ui'
 
 export const SECTIONS = ['installation', 'products', 'troubleshooting', 'sales'] as const
@@ -105,14 +106,13 @@ export function KnowledgeForm({
     >
       <div className="form">
         <div className="row">
-          <Field label={t('kb.section')}>
-            <select className="select" value={d.section} onChange={(e) => setD({ ...d, section: e.target.value })}>
-              {SECTIONS.map((s) => (
-                <option key={s} value={s}>
-                  {t(sectionLabel(s))}
-                </option>
-              ))}
-            </select>
+          <Field label={t('kb.section')} group>
+            <Select
+              label={t('kb.section')}
+              value={d.section}
+              options={SECTIONS.map((x) => ({ value: x, label: t(sectionLabel(x)) }))}
+              onChange={(v) => v && setD({ ...d, section: v })}
+            />
           </Field>
           <Field label={t('kb.product')}>
             <input className="input" value={d.product} onChange={(e) => setD({ ...d, product: e.target.value })} />

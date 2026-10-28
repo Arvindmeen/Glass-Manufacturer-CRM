@@ -4,6 +4,8 @@ import { Mail, MessageSquare, Pencil, Phone } from 'lucide-react'
 import { useT } from '../i18n'
 import { fullName, linkPersonCompany, useDB } from '../store/db'
 import { PersonForm } from '../components/forms'
+import { Select } from '../components/Dropdown'
+import { companyOptions } from '../components/options'
 import { LinkedList, MeetingsSection, TasksSection } from '../components/related'
 import { Avatar, PageHead, Section } from '../components/ui'
 
@@ -64,20 +66,12 @@ export function PersonPage() {
         title={t('field.companies')}
         action={
           others.length > 0 && (
-            <select
-              className="select"
-              style={{ minHeight: 32, padding: '4px 8px', width: 'auto', maxWidth: 170, fontSize: '0.875rem' }}
-              value=""
-              onChange={(e) => e.target.value && linkPersonCompany(id, e.target.value, true)}
-              aria-label={t('person.linkCompany')}
-            >
-              <option value="">{t('person.linkCompany')}</option>
-              {others.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+            <Select
+              variant="add"
+              label={t('person.linkCompany')}
+              options={companyOptions(others)}
+              onChange={(v) => v && linkPersonCompany(id, v, true)}
+            />
           )
         }
       >

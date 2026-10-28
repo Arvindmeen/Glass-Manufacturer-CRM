@@ -3,7 +3,9 @@ import { Check, Globe, Loader2, Plus, Search } from 'lucide-react'
 import { useT, type TKey } from '../i18n'
 import { blankCompany, saveCompany, useDB } from '../store/db'
 import { findCompany } from '../lib/interpret'
+import { Select } from '../components/Dropdown'
 import { Field, PageHead, toast } from '../components/ui'
+import { useSettings, type Lang } from '../store/settings'
 
 /* Static sample results — the search itself is a mockup by design. */
 
@@ -50,6 +52,10 @@ const LEADS: Lead[] = [
 ]
 
 const REGIONS = ['BE', 'SO', 'FR', 'LU', 'ZH', 'AG'] as const
+const CANTONS: Record<Lang, Record<(typeof REGIONS)[number], string>> = {
+  en: { BE: 'Bern', SO: 'Solothurn', FR: 'Fribourg', LU: 'Lucerne', ZH: 'Zurich', AG: 'Aargau' },
+  de: { BE: 'Bern', SO: 'Solothurn', FR: 'Freiburg', LU: 'Luzern', ZH: 'Zürich', AG: 'Aargau' },
+}
 const TYPES: LeadType[] = ['carpentry', 'architecture', 'plumbing', 'windows', 'interior']
 const INDUSTRY: Record<LeadType, string> = {
   carpentry: 'Carpentry',
@@ -63,6 +69,7 @@ type Phase = 'idle' | 'register' | 'websites' | 'done'
 
 export function LeadsPage() {
   const t = useT()
+  const { lang } = useSettings()
   const db = useDB()
   const [region, setRegion] = useState<string>('BE')
   const [type, setType] = useState<LeadType>('carpentry')
@@ -104,42 +111,38 @@ export function LeadsPage() {
       <PageHead title={t('nav.leads')} />
       <div className="card form" style={{ padding: 16 }}>
         <div className="row">
-          <Field label={t('leads.region')}>
-            <select className="select" value={region} onChange={(e) => setRegion(e.target.value)}>
-              <option value="">{t('leads.any')}</option>
-              {REGIONS.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
+          <Field label={t('leads.region')} group>
+            <Select
+              label={t('leads.region')}
+              value={region}
+              onChange={(v) => setRegion(v ?? '')}
+              options={[{ value: '', label: t('leads.any') }, ...REGIONS.map((r) => ({ value: r, label: CANTONS[lang][r], sub: r }))]}
+            />
           </Field>
-          <Field label={t('leads.type')}>
-            <select className="select" value={type} onChange={(e) => setType(e.target.value as LeadType)}>
-              {TYPES.map((x) => (
-                <option key={x} value={x}>
-                  {t(`leads.${x}` as TKey)}
-                </option>
-              ))}
-            </select>
+          <Field label={t('leads.type')} group>
+            <Select
+              label={t('leads.type')}
+              value={type}
+              onChange={(v) => v && setType(v as LeadType)}
+              options={TYPES.map((x) => ({ value: x, label: t(`leads.${x}` as TKey) }))}
+            />
           </Field>
         </div>
         <div className="row">
-          <Field label={t('leads.minEmployees')}>
-            <select className="select" value={minEmployees} onChange={(e) => setMinEmployees(Number(e.target.value))}>
+          <Field label={t('leads.minEmployees')} group>
+            <div className="segmented">
               {[0, 5, 10, 20].map((n) => (
-                <option key={n} value={n}>
+                <button key={n} type="button" className={minEmployees === n ? 'active' : ''} onClick={() => setMinEmployees(n)}>
                   {n === 0 ? t('leads.any') : `${n}+`}
-                </option>
+                </button>
               ))}
-            </select>
+            </div>
           </Field>
-          <label className="field">
-            <span>{t('field.website')}</span>
-            <button type="button" className={`btn${websiteOnly ? ' primary' : ''}`} onClick={() => setWebsiteOnly((v) => !v)}>
-              {websiteOnly ? <Check size={18} /> : <Globe size={18} />} {t('leads.hasWebsite')}
+          <Field label={t('field.website')} group>
+            <button type="button" className={`toggle-chip${websiteOnly ? ' on' : ''}`} style={{ minHeight: 40, justifyContent: 'center' }} aria-pressed={websiteOnly} onClick={() => setWebsiteOnly((v) => !v)}>
+              {websiteOnly ? <Check size={16} strokeWidth={3} /> : <Globe size={16} />} {t('leads.hasWebsite')}
             </button>
-          </label>
+          </Field>
         </div>
         <button className="btn primary lg block" onClick={search} disabled={phase === 'register' || phase === 'websites'}>
           {phase === 'register' || phase === 'websites' ? <Loader2 size={18} className="spin" /> : <Search size={18} />}{' '}

@@ -9,15 +9,26 @@ export interface Settings {
 
 const KEY = 'glasscrm:settings:v1'
 
+/** German browsers get German; every other browser language falls back to English. */
+export const browserLang = (): Lang => (navigator.language?.toLowerCase().startsWith('de') ? 'de' : 'en')
+
+/** Stored shape: the language is kept only once the user picked one in Settings. */
+interface Stored {
+  openaiKey?: string
+  chosenLang?: Lang
+}
+
+let stored: Stored = {}
+
 function load(): Settings {
-  const fallback: Settings = { openaiKey: '', lang: 'en' }
   try {
     const raw = localStorage.getItem(KEY)
-    if (raw) return { ...fallback, ...(JSON.parse(raw) as Partial<Settings>) }
+    if (raw) stored = JSON.parse(raw) as Stored
   } catch {
     // ignore
   }
-  return fallback
+  const lang = stored.chosenLang === 'de' || stored.chosenLang === 'en' ? stored.chosenLang : browserLang()
+  return { openaiKey: stored.openaiKey ?? '', lang }
 }
 
 let settings = load()
@@ -25,8 +36,9 @@ const listeners = new Set<() => void>()
 
 export function updateSettings(patch: Partial<Settings>) {
   settings = { ...settings, ...patch }
+  stored = { openaiKey: settings.openaiKey, chosenLang: patch.lang ?? stored.chosenLang }
   try {
-    localStorage.setItem(KEY, JSON.stringify(settings))
+    localStorage.setItem(KEY, JSON.stringify(stored))
   } catch {
     // ignore
   }

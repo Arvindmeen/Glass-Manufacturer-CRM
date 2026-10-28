@@ -193,7 +193,8 @@ h3 { font-size: 0.95rem; }
   flex: 1; border: 0; background: none; padding: 7px 10px; border-radius: 8px; cursor: pointer;
   font-size: 0.875rem; color: var(--muted); font-weight: 500; white-space: nowrap;
 }
-.segmented button.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgb(0 0 0 / 10%); }
+.segmented button.active { background: var(--primary); color: var(--primary-ink); font-weight: 600; box-shadow: 0 1px 3px rgb(15 92 110 / 30%); }
+.segmented button:not(.active):hover { color: var(--text); }
 
 /* ---------- tasks ---------- */
 .board { display: grid; gap: 12px; }
@@ -402,3 +403,94 @@ h3 { font-size: 0.95rem; }
   border-radius: 10px; background: #fdf1dc; color: var(--warn); font-size: 0.85rem; font-weight: 600;
 }
 .maybe .btn { color: var(--text); }
+
+/* ---------- select / date picker ---------- */
+.select-trigger {
+  display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 8px 12px;
+  border: 1px solid var(--border); border-radius: 10px; background: var(--surface); cursor: pointer; text-align: left;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.select-trigger:hover { border-color: #c3ccd2; }
+.select-trigger.open, .select-trigger:focus-visible { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+.select-trigger .value, .select-trigger .placeholder { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.select-trigger .placeholder { color: var(--muted); }
+.select-trigger .caret { color: var(--muted); flex: none; transition: transform 0.15s; }
+.select-trigger.open .caret { transform: rotate(180deg); }
+.select-trigger.v-compact { width: auto; min-height: 32px; padding: 4px 10px; font-size: 0.875rem; max-width: 200px; }
+.select-trigger.v-add {
+  width: auto; min-height: 34px; padding: 4px 12px; border-style: dashed; color: var(--primary);
+  font-size: 0.875rem; font-weight: 500; background: transparent;
+}
+.select-trigger.v-add:hover { background: var(--primary-soft); border-color: var(--primary); }
+
+.picker-pop {
+  position: fixed; z-index: 80; display: flex; flex-direction: column; overflow: hidden;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: 0 12px 32px rgb(15 25 35 / 18%); animation: pop 0.12s ease-out;
+}
+@keyframes pop { from { opacity: 0; transform: translateY(-4px); } }
+.picker-backdrop {
+  position: fixed; inset: 0; z-index: 80; background: rgb(15 25 35 / 40%);
+  display: flex; align-items: flex-end; animation: fade 0.15s ease-out;
+}
+.picker-sheet {
+  width: 100%; max-height: 80dvh; display: flex; flex-direction: column; background: var(--surface);
+  border-radius: 18px 18px 0 0; padding: 6px 0 env(safe-area-inset-bottom); animation: up 0.2s ease-out;
+}
+.picker-grip { width: 40px; height: 4px; border-radius: 2px; background: var(--border); margin: 4px auto 2px; }
+.picker-title { display: flex; align-items: center; justify-content: space-between; padding: 2px 8px 6px 16px; font-weight: 600; }
+.picker-body { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.picker-search { position: relative; padding: 8px; border-bottom: 1px solid var(--border); }
+.picker-search svg { position: absolute; left: 20px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+.picker-search input {
+  width: 100%; min-height: 40px; padding: 8px 10px 8px 34px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface-2); outline: none;
+}
+.picker-search input:focus { border-color: var(--primary); background: var(--surface); }
+.picker-list { list-style: none; margin: 0; padding: 6px; overflow-y: auto; outline: none; }
+.picker-option {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 8px 10px;
+  border: 0; border-radius: 8px; background: none; text-align: left; cursor: pointer;
+}
+.picker-option.active { background: var(--surface-2); }
+.picker-option.selected { background: var(--primary-soft); color: var(--primary); font-weight: 600; }
+.picker-option .label { display: block; }
+.picker-option .sub { display: block; font-size: 0.8rem; color: var(--muted); font-weight: 400; }
+@media (max-width: 699px) {
+  .picker-option { min-height: 52px; font-size: 1rem; }
+}
+
+.calendar { padding: 10px; }
+.cal-quick { display: flex; flex-wrap: wrap; gap: 6px; padding-bottom: 10px; margin-bottom: 4px; border-bottom: 1px solid var(--border); }
+.cal-quick .chip { border: 0; cursor: pointer; padding: 6px 12px; font-size: 0.85rem; }
+.cal-head { display: flex; align-items: center; justify-content: space-between; font-weight: 600; text-transform: capitalize; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.cal-wd { text-align: center; font-size: 0.72rem; font-weight: 600; color: var(--muted); padding: 6px 0; text-transform: uppercase; }
+.cal-day {
+  aspect-ratio: 1; min-height: 36px; border: 0; border-radius: 50%; background: none; cursor: pointer;
+  font-size: 0.9rem; font-variant-numeric: tabular-nums; display: grid; place-items: center;
+}
+.cal-day:hover { background: var(--surface-2); }
+.cal-day.weekend { color: var(--muted); }
+.cal-day.out { color: #b9c1c7; }
+.cal-day.today { box-shadow: inset 0 0 0 2px var(--primary); color: var(--primary); font-weight: 700; }
+.cal-day.selected { background: var(--primary); color: #fff; font-weight: 700; box-shadow: none; }
+.cal-foot { display: flex; justify-content: space-between; padding-top: 6px; }
+@media (max-width: 699px) {
+  .calendar { padding: 4px 14px 14px; }
+  .cal-day { min-height: 44px; font-size: 1rem; }
+}
+
+.toggle-chip {
+  display: inline-flex; align-items: center; gap: 4px; min-height: 34px; padding: 4px 12px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 0.875rem; cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.toggle-chip:hover { border-color: var(--primary); }
+.toggle-chip.on { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 600; }
+.chips .chip-remove {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 4px 6px 4px 12px; border-radius: 999px;
+  border: 0; background: var(--primary); color: #fff; font-size: 0.875rem; font-weight: 600; cursor: pointer;
+}
+.chips .chip-remove svg { opacity: 0.85; }
+.picker-option .grow { flex: 1; min-width: 0; }

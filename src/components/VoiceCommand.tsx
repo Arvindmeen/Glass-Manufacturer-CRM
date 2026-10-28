@@ -5,6 +5,8 @@ import { formatDate } from '../lib/format'
 import { applyProposals, interpret, replaceWithExisting, type Proposal, type Ref, type ReviewItem } from '../lib/interpret'
 import { MissingKeyError } from '../lib/openai'
 import { fullName, useDB } from '../store/db'
+import { DatePicker, Select, type Option } from './Dropdown'
+import { companyOptions as companyOptionsOf, personOptions as personOptionsOf } from './options'
 import { ErrorText, Field, Sheet, toast } from './ui'
 import { VoiceOverlay } from './VoiceOverlay'
 import { VoiceRecorder } from './VoiceRecorder'
@@ -145,11 +147,11 @@ function useRefs(items: ReviewItem[]) {
 
   const companyOptions = [
     ...newCompanies.map((c) => ({ value: c.ref, label: `${c.name} (+)` })),
-    ...[...companies].sort((a, b) => a.name.localeCompare(b.name)).map((c) => ({ value: c.id, label: c.name })),
+    ...companyOptionsOf(companies),
   ]
   const personOptions = [
     ...newPeople.map((p) => ({ value: p.ref, label: `${fullName(p)} (+)` })),
-    ...[...people].sort((a, b) => a.lastName.localeCompare(b.lastName)).map((p) => ({ value: p.id, label: fullName(p) })),
+    ...personOptionsOf(people, companies),
   ]
   const isNewRef = (ref: Ref) => ref.startsWith('new:')
   return { label, companyOptions, personOptions, isNewRef }
@@ -235,8 +237,8 @@ function ProposalCard({
           <Field label={t('field.role')}>
             <input className="input" value={p.role} onChange={(e) => set({ role: e.target.value })} />
           </Field>
-          <Field label={t('field.company')}>
-            <RefSelect value={p.companyRefs[0]} options={refs.companyOptions} onChange={(v) => set({ companyRefs: v ? [v] : [] })} />
+          <Field label={t('field.company')} group>
+            <RefSelect label={t('field.company')} value={p.companyRefs[0]} options={refs.companyOptions} onChange={(v) => set({ companyRefs: v ? [v] : [] })} />
           </Field>
         </>
       )
@@ -255,8 +257,8 @@ function ProposalCard({
       form = (
         <>
           <div className="row">
-            <Field label={t('field.date')}>
-              <input className="input" type="date" value={p.date} onChange={(e) => set({ date: e.target.value })} />
+            <Field label={t('field.date')} group>
+              <DatePicker label={t('field.date')} value={p.date} onChange={(date) => set({ date })} />
             </Field>
             <Field label={t('field.title')}>
               <input className="input" value={p.title} onChange={(e) => set({ title: e.target.value })} />
@@ -266,11 +268,11 @@ function ProposalCard({
             <textarea className="textarea" rows={4} value={p.summary} onChange={(e) => set({ summary: e.target.value })} />
           </Field>
           <div className="row">
-            <Field label={t('field.company')}>
-              <RefSelect value={p.companyRefs[0]} options={refs.companyOptions} onChange={(v) => set({ companyRefs: v ? [v] : [] })} />
+            <Field label={t('field.company')} group>
+              <RefSelect label={t('field.company')} value={p.companyRefs[0]} options={refs.companyOptions} onChange={(v) => set({ companyRefs: v ? [v] : [] })} />
             </Field>
-            <Field label={t('field.person')}>
-              <RefSelect value={p.personRefs[0]} options={refs.personOptions} onChange={(v) => set({ personRefs: v ? [v, ...p.personRefs.slice(1)] : p.personRefs.slice(1) })} />
+            <Field label={t('field.person')} group>
+              <RefSelect label={t('field.person')} value={p.personRefs[0]} options={refs.personOptions} onChange={(v) => set({ personRefs: v ? [v, ...p.personRefs.slice(1)] : p.personRefs.slice(1) })} />
             </Field>
           </div>
         </>
@@ -292,15 +294,15 @@ function ProposalCard({
           <Field label={t('field.title')}>
             <input className="input" value={p.title} onChange={(e) => set({ title: e.target.value })} />
           </Field>
-          <Field label={t('field.due')}>
-            <input className="input" type="date" value={p.due} onChange={(e) => set({ due: e.target.value })} />
+          <Field label={t('field.due')} group>
+            <DatePicker label={t('field.due')} value={p.due} onChange={(due) => set({ due })} clearable quick />
           </Field>
           <div className="row">
-            <Field label={t('field.company')}>
-              <RefSelect value={p.companyRef} options={refs.companyOptions} onChange={(v) => set({ companyRef: v })} />
+            <Field label={t('field.company')} group>
+              <RefSelect label={t('field.company')} value={p.companyRef} options={refs.companyOptions} onChange={(v) => set({ companyRef: v })} />
             </Field>
-            <Field label={t('field.person')}>
-              <RefSelect value={p.personRef} options={refs.personOptions} onChange={(v) => set({ personRef: v })} />
+            <Field label={t('field.person')} group>
+              <RefSelect label={t('field.person')} value={p.personRef} options={refs.personOptions} onChange={(v) => set({ personRef: v })} />
             </Field>
           </div>
         </>
@@ -317,8 +319,8 @@ function ProposalCard({
       )
       form = (
         <>
-          <Field label={t('proposal.target')}>
-            <RefSelect
+          <Field label={t('proposal.target')} group>
+            <RefSelect label={t('proposal.target')}
               value={p.targetRef}
               options={[...refs.companyOptions, ...refs.personOptions].filter((o) => !o.value.startsWith('new:'))}
               onChange={(v) => v && set({ targetRef: v })}
@@ -383,19 +385,12 @@ function RefSelect({
   value,
   options,
   onChange,
+  label,
 }: {
   value?: string
-  options: { value: string; label: string }[]
+  options: Option[]
   onChange: (v: string | undefined) => void
+  label: string
 }) {
-  return (
-    <select className="select" value={value ?? ''} onChange={(e) => onChange(e.target.value || undefined)}>
-      <option value="">—</option>
-      {options.map((o) => (
-        <option key={o.value} value={o.value}>
-          {o.label}
-        </option>
-      ))}
-    </select>
-  )
+  return <Select label={label} value={value} options={options} onChange={onChange} clearable />
 }

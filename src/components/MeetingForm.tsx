@@ -4,6 +4,8 @@ import { chatJSON } from '../lib/openai'
 import { todayISO } from '../lib/format'
 import { blankMeeting, deleteMeeting, fullName, saveMeeting, useDB } from '../store/db'
 import type { Meeting } from '../types'
+import { DatePicker, RemovableChip, Select, ToggleChips } from './Dropdown'
+import { companyOptions, personOptions } from './options'
 import { Field, Sheet } from './ui'
 import { VoiceRecorder } from './VoiceRecorder'
 
@@ -96,8 +98,8 @@ ${list || '(none)'}`,
       <div className="form">
         <VoiceRecorder big label={t('meeting.byVoice')} onText={fillFromVoice} autoStart={startWithVoice} />
         <div className="row">
-          <Field label={t('field.date')}>
-            <input className="input" type="date" value={d.date} onChange={(e) => setD({ ...d, date: e.target.value })} />
+          <Field label={t('field.date')} group>
+            <DatePicker label={t('field.date')} value={d.date} onChange={(date) => setD({ ...d, date })} />
           </Field>
           <Field label={t('field.title')}>
             <input className="input" value={d.title} onChange={(e) => setD({ ...d, title: e.target.value })} />
@@ -111,48 +113,35 @@ ${list || '(none)'}`,
             onChange={(e) => setD({ ...d, summary: e.target.value })}
           />
         </Field>
-        <Field label={t('field.people')}>
-          <div className="chips">
-            {candidates.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                className={`chip${d.personIds.includes(p.id) ? ' primary' : ''}`}
-                onClick={() => toggle('personIds', p.id)}
-              >
-                {fullName(p)}
-              </button>
-            ))}
-          </div>
+        <Field label={t('field.people')} group>
+          <ToggleChips
+            options={candidates.map((p) => ({ value: p.id, label: fullName(p) }))}
+            selected={d.personIds}
+            onToggle={(id) => toggle('personIds', id)}
+          />
           {others.length > 0 && (
-            <select className="select" value="" onChange={(e) => e.target.value && toggle('personIds', e.target.value)}>
-              <option value="">+ {t('field.person')}</option>
-              {others.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {fullName(p)}
-                </option>
-              ))}
-            </select>
+            <div>
+              <Select
+                variant="add"
+                label={t('field.person')}
+                options={personOptions(others, companies)}
+                onChange={(v) => v && toggle('personIds', v)}
+              />
+            </div>
           )}
         </Field>
-        <Field label={t('field.companies')}>
+        <Field label={t('field.companies')} group>
           <div className="chips">
             {d.companyIds.map((id) => (
-              <button key={id} type="button" className="chip primary" onClick={() => toggle('companyIds', id)}>
-                {companies.find((c) => c.id === id)?.name ?? '?'} ×
-              </button>
+              <RemovableChip key={id} label={companies.find((c) => c.id === id)?.name ?? '?'} onRemove={() => toggle('companyIds', id)} />
             ))}
+            <Select
+              variant="add"
+              label={t('field.company')}
+              options={companyOptions(companies.filter((c) => !d.companyIds.includes(c.id)))}
+              onChange={(v) => v && toggle('companyIds', v)}
+            />
           </div>
-          <select className="select" value="" onChange={(e) => e.target.value && toggle('companyIds', e.target.value)}>
-            <option value="">+ {t('field.company')}</option>
-            {companies
-              .filter((c) => !d.companyIds.includes(c.id))
-              .map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-          </select>
         </Field>
       </div>
     </Sheet>

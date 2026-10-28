@@ -14,6 +14,8 @@ import {
   useDB,
 } from '../store/db'
 import type { Company, Person, Task, TaskStatus } from '../types'
+import { DatePicker, RemovableChip, Select } from './Dropdown'
+import { companyOptions, personOptions } from './options'
 import { Field, Sheet } from './ui'
 
 function useDraft<T>(initial: T) {
@@ -195,32 +197,18 @@ export function PersonForm({
             <input className="input" value={d.email} onChange={set('email')} type="email" />
           </Field>
         </div>
-        <Field label={t('field.companies')}>
+        <Field label={t('field.companies')} group>
           <div className="chips">
-            {d.companyIds.map((id) => {
-              const c = companies.find((x) => x.id === id)
-              return (
-                <button key={id} type="button" className="chip primary" onClick={() => toggleCompany(id)}>
-                  {c?.name ?? '?'} ×
-                </button>
-              )
-            })}
+            {d.companyIds.map((id) => (
+              <RemovableChip key={id} label={companies.find((x) => x.id === id)?.name ?? '?'} onRemove={() => toggleCompany(id)} />
+            ))}
+            <Select
+              variant="add"
+              label={t('person.linkCompany')}
+              options={companyOptions(companies.filter((c) => !d.companyIds.includes(c.id)))}
+              onChange={(v) => v && toggleCompany(v)}
+            />
           </div>
-          <select
-            className="select"
-            value=""
-            onChange={(e) => e.target.value && toggleCompany(e.target.value)}
-          >
-            <option value="">+ {t('person.linkCompany')}</option>
-            {companies
-              .filter((c) => !d.companyIds.includes(c.id))
-              .sort((a, b) => a.name.localeCompare(b.name))
-              .map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-          </select>
         </Field>
         <Field label={t('common.notes')}>
           <textarea className="textarea" value={d.notes} onChange={set('notes')} />
@@ -277,52 +265,41 @@ export function TaskForm({
           <input className="input" value={d.title} onChange={set('title')} autoFocus={isNew} />
         </Field>
         <div className="row">
-          <Field label={t('field.due')}>
-            <input className="input" type="date" value={d.due} onChange={set('due')} />
+          <Field label={t('field.due')} group>
+            <DatePicker label={t('field.due')} value={d.due} onChange={(due) => setD({ ...d, due })} clearable quick />
           </Field>
-          <Field label={t('field.status')}>
-            <select className="select" value={d.status} onChange={(e) => setD({ ...d, status: e.target.value as TaskStatus })}>
-              <option value="planned">{t('task.planned')}</option>
-              <option value="in_progress">{t('task.in_progress')}</option>
-              <option value="done">{t('task.done')}</option>
-            </select>
+          <Field label={t('field.status')} group>
+            <Select
+              label={t('field.status')}
+              value={d.status}
+              onChange={(v) => v && setD({ ...d, status: v as TaskStatus })}
+              options={(['planned', 'in_progress', 'done'] as const).map((s) => ({ value: s, label: t(`task.${s}`) }))}
+            />
           </Field>
         </div>
-        <Field label={t('field.company')}>
-          <select
-            className="select"
-            value={d.companyId ?? ''}
-            onChange={(e) => {
-              const companyId = e.target.value || undefined
+        <Field label={t('field.company')} group>
+          <Select
+            label={t('field.company')}
+            value={d.companyId}
+            clearable
+            options={companyOptions(companies)}
+            onChange={(companyId) => {
               const keepPerson = d.personId && companyId && people.find((p) => p.id === d.personId)?.companyIds.includes(companyId)
               setD({ ...d, companyId, personId: keepPerson ? d.personId : companyId ? undefined : d.personId })
             }}
-          >
-            <option value="">—</option>
-            {[...companies].sort((a, b) => a.name.localeCompare(b.name)).map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+          />
         </Field>
-        <Field label={t('field.person')}>
-          <select
-            className="select"
-            value={d.personId ?? ''}
-            onChange={(e) => {
-              const personId = e.target.value || undefined
+        <Field label={t('field.person')} group>
+          <Select
+            label={t('field.person')}
+            value={d.personId}
+            clearable
+            options={personOptions(peopleOptions, companies)}
+            onChange={(personId) => {
               const p = people.find((x) => x.id === personId)
               setD({ ...d, personId, companyId: d.companyId ?? (p?.companyIds.length === 1 ? p.companyIds[0] : undefined) })
             }}
-          >
-            <option value="">—</option>
-            {[...peopleOptions].sort((a, b) => a.lastName.localeCompare(b.lastName)).map((p) => (
-              <option key={p.id} value={p.id}>
-                {fullName(p)}
-              </option>
-            ))}
-          </select>
+          />
         </Field>
       </form>
     </Sheet>
