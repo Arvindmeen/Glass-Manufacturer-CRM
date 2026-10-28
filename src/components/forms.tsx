@@ -16,7 +16,7 @@ import {
 import type { Company, Person, Task, TaskStatus } from '../types'
 import { DatePicker, RemovableChip, Select } from './Dropdown'
 import { companyOptions, personOptions } from './options'
-import { Field, Sheet } from './ui'
+import { Field, Sheet, useClosing } from './ui'
 
 function useDraft<T>(initial: T) {
   const [draft, setDraft] = useState(initial)
@@ -57,16 +57,17 @@ export function CompanyForm({
   onDeleted?: () => void
 }) {
   const t = useT()
+  const [closing, close] = useClosing(onClose)
   const [d, , set] = useDraft(company ?? blankCompany())
   const isNew = !company
   return (
     <Sheet
       title={isNew ? t('company.new') : d.name}
-      onClose={onClose}
+      onClose={close} closing={closing}
       footer={
         <Footer
           canSave={!!d.name.trim()}
-          onCancel={onClose}
+          onCancel={close}
           onDelete={
             isNew
               ? undefined
@@ -86,7 +87,7 @@ export function CompanyForm({
         onSubmit={(e) => {
           e.preventDefault()
           onSaved?.(saveCompany({ ...d, name: d.name.trim() }))
-          onClose()
+          close()
         }}
       >
         <Field label={t('field.name')}>
@@ -139,6 +140,7 @@ export function PersonForm({
   onDeleted?: () => void
 }) {
   const t = useT()
+  const [closing, close] = useClosing(onClose)
   const { companies } = useDB()
   const [d, setD, set] = useDraft(person ?? blankPerson({ companyIds: defaultCompanyId ? [defaultCompanyId] : [] }))
   const isNew = !person
@@ -151,11 +153,11 @@ export function PersonForm({
   return (
     <Sheet
       title={isNew ? t('person.new') : fullName(d)}
-      onClose={onClose}
+      onClose={close} closing={closing}
       footer={
         <Footer
           canSave={!!(d.firstName.trim() || d.lastName.trim())}
-          onCancel={onClose}
+          onCancel={close}
           onDelete={
             isNew
               ? undefined
@@ -175,7 +177,7 @@ export function PersonForm({
         onSubmit={(e) => {
           e.preventDefault()
           onSaved?.(savePerson(d))
-          onClose()
+          close()
         }}
       >
         <div className="row">
@@ -228,6 +230,7 @@ export function TaskForm({
   onClose: () => void
 }) {
   const t = useT()
+  const [closing, close] = useClosing(onClose)
   const { companies, people } = useDB()
   const [d, setD, set] = useDraft(task ?? blankTask(defaults))
   const isNew = !task
@@ -236,17 +239,17 @@ export function TaskForm({
   return (
     <Sheet
       title={isNew ? t('task.new') : t('task.title')}
-      onClose={onClose}
+      onClose={close} closing={closing}
       footer={
         <Footer
           canSave={!!d.title.trim()}
-          onCancel={onClose}
+          onCancel={close}
           onDelete={
             isNew
               ? undefined
               : () => {
                   deleteTask(d.id)
-                  onClose()
+                  close()
                 }
           }
         />
@@ -258,7 +261,7 @@ export function TaskForm({
         onSubmit={(e) => {
           e.preventDefault()
           saveTask({ ...d, title: d.title.trim() })
-          onClose()
+          close()
         }}
       >
         <Field label={t('field.title')}>

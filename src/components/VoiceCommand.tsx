@@ -7,7 +7,7 @@ import { MissingKeyError } from '../lib/openai'
 import { fullName, useDB } from '../store/db'
 import { DatePicker, Select, type Option } from './Dropdown'
 import { companyOptions as companyOptionsOf, personOptions as personOptionsOf } from './options'
-import { ErrorText, Field, Sheet, toast } from './ui'
+import { ErrorText, Field, Sheet, toast, useClosing } from './ui'
 import { VoiceOverlay } from './VoiceOverlay'
 import { VoiceRecorder } from './VoiceRecorder'
 
@@ -21,6 +21,7 @@ const icons: Record<Proposal['kind'], ReactNode> = {
 
 export function VoiceCommand({ onClose }: { onClose: () => void }) {
   const t = useT()
+  const [closing, close] = useClosing(onClose)
   const [items, setItems] = useState<ReviewItem[] | null>(null)
   const [transcript, setTranscript] = useState('')
   const [typed, setTyped] = useState('')
@@ -51,9 +52,9 @@ export function VoiceCommand({ onClose }: { onClose: () => void }) {
 
   if (!items) {
     return (
-      <Sheet title={t('voice.start')} onClose={onClose}>
+      <Sheet title={t('voice.start')} onClose={close} closing={closing}>
         <div className="stack">
-          <VoiceRecorder big autoStart onText={run} onCancel={onClose} />
+          <VoiceRecorder big autoStart onText={run} onCancel={close} />
           {busy && typedRun && (
             <VoiceOverlay mode="processing" seconds={0} getLevel={() => 0} onDone={() => {}} onCancel={() => {}} />
           )}
@@ -85,7 +86,7 @@ export function VoiceCommand({ onClose }: { onClose: () => void }) {
   return (
     <Sheet
       title={t('voice.review')}
-      onClose={onClose}
+      onClose={close} closing={closing}
       wide
       footer={
         <>
@@ -99,7 +100,7 @@ export function VoiceCommand({ onClose }: { onClose: () => void }) {
             onClick={() => {
               applyProposals(items)
               toast(t('voice.saved'))
-              onClose()
+              close()
             }}
           >
             <Check size={18} /> {t('voice.saveAccepted', { n: acceptedCount })}

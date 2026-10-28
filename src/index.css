@@ -234,24 +234,53 @@ h3 { font-size: 0.95rem; }
 .sheet-backdrop {
   position: fixed; inset: 0; z-index: 50; background: rgb(15 25 35 / 40%);
   display: flex; align-items: flex-end; justify-content: center;
-  animation: fade 0.15s ease-out;
+  animation: fade 0.2s ease-out; transition: background-color 0.24s ease;
 }
+.sheet-backdrop.closing { background: rgb(15 25 35 / 0%); pointer-events: none; }
 .sheet {
-  background: var(--surface); width: 100%; max-height: 92dvh; overflow: auto;
-  border-radius: 18px 18px 0 0; padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
-  animation: up 0.2s ease-out;
+  display: flex; flex-direction: column; overflow: hidden;
+  background: var(--surface); width: 100%; max-height: 92dvh;
+  border-radius: 18px 18px 0 0;
+  transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.26s cubic-bezier(0.2, 0.8, 0.2, 1),
+    max-height 0.26s cubic-bezier(0.2, 0.8, 0.2, 1), border-radius 0.2s;
+  animation: sheet-in 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  will-change: transform;
 }
-.sheet-head { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+.sheet-top { flex: none; padding: 14px 16px 0; }
+.sheet-head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
 .sheet-head h2 { flex: 1; font-size: 1.1rem; }
-.sheet-foot { display: flex; gap: 8px; margin-top: 16px; position: sticky; bottom: calc(-16px - env(safe-area-inset-bottom)); background: var(--surface); padding: 10px 0 calc(6px + env(safe-area-inset-bottom)); }
+.sheet-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 2px 16px 16px; }
+.sheet-foot {
+  flex: none; display: flex; gap: 8px; align-items: center; background: var(--surface);
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border);
+}
 .sheet-foot .grow { flex: 1; }
+.sheet-grip { position: relative; height: 22px; margin: -10px auto 2px; width: 80px; cursor: grab; outline: none; }
+.sheet-grip::before {
+  content: ''; position: absolute; left: 20px; right: 20px; top: 9px; height: 5px; border-radius: 3px;
+  background: var(--border); transition: background 0.15s;
+}
+.sheet-grip:focus-visible::before, .sheet-grip:hover::before { background: var(--muted); }
+
+@media (max-width: 699px) {
+  .sheet-top { touch-action: none; user-select: none; }
+  .sheet.full { max-height: 100dvh; height: 100dvh; border-radius: 0; }
+  .sheet.full .sheet-top { padding-top: calc(14px + env(safe-area-inset-top)); }
+  .sheet.closing { transform: translateY(100%) !important; }
+}
 @media (min-width: 700px) {
   .sheet-backdrop { align-items: center; }
-  .sheet { max-width: 560px; border-radius: 16px; max-height: 86dvh; }
+  .sheet { max-width: 560px; border-radius: 16px; max-height: 86dvh; animation: sheet-pop 0.2s ease-out; transition: opacity 0.18s, transform 0.18s; }
   .sheet.wide { max-width: 760px; }
+  .sheet.closing { opacity: 0; transform: translateY(8px) scale(0.98); }
 }
+@keyframes sheet-in { from { transform: translateY(100%); } }
+@keyframes sheet-pop { from { opacity: 0; transform: translateY(8px) scale(0.98); } }
 @keyframes up { from { transform: translateY(24px); opacity: 0.6; } }
 @keyframes fade { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .sheet, .sheet-backdrop, .picker-sheet { animation-duration: 0.01s; transition-duration: 0.01s; }
+}
 
 /* ---------- misc ---------- */
 .muted { color: var(--muted); }
@@ -386,18 +415,13 @@ h3 { font-size: 0.95rem; }
   .steps li { display: grid; grid-template-columns: 260px 1fr; align-items: center; }
 }
 
-.chat { display: flex; flex-direction: column; min-height: calc(100dvh - var(--nav-h) - 60px); }
-.chat-messages { flex: 1; display: flex; flex-direction: column; gap: 8px; padding-bottom: 12px; }
+.chat-messages { display: flex; flex-direction: column; gap: 8px; min-height: 100%; justify-content: flex-end; padding-top: 4px; }
 .bubble { max-width: 85%; padding: 10px 14px; border-radius: 16px; white-space: pre-wrap; font-size: 0.95rem; }
 .bubble.user { align-self: flex-end; background: var(--primary); color: #fff; border-bottom-right-radius: 4px; }
-.bubble.assistant { align-self: flex-start; background: var(--surface); box-shadow: var(--shadow); border-bottom-left-radius: 4px; }
-.chat-input {
-  position: sticky; bottom: calc(var(--nav-h) + 8px + env(safe-area-inset-bottom));
-  display: flex; gap: 8px; padding: 8px; background: var(--surface); border-radius: 14px; box-shadow: 0 -2px 16px rgb(0 0 0 / 10%);
-}
-@media (min-width: 900px) {
-  .chat { min-height: calc(100dvh - 76px); }
-  .chat-input { bottom: 16px; }
+.bubble.assistant { align-self: flex-start; background: var(--surface-2); border-bottom-left-radius: 4px; }
+.chat-input { display: flex; gap: 8px; width: 100%; }
+@media (min-width: 700px) {
+  .sheet:has(.chat-input) { height: 80dvh; }
 }
 
 .maybe {
@@ -437,9 +461,14 @@ h3 { font-size: 0.95rem; }
 }
 .picker-sheet {
   width: 100%; max-height: 88dvh; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; background: var(--surface);
-  border-radius: 18px 18px 0 0; padding: 6px 0 env(safe-area-inset-bottom); animation: up 0.2s ease-out;
+  border-radius: 18px 18px 0 0; padding: 6px 0 env(safe-area-inset-bottom); animation: sheet-in 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
-.picker-grip { width: 40px; height: 4px; border-radius: 2px; background: var(--border); margin: 4px auto 2px; }
+.picker-drag { touch-action: none; user-select: none; cursor: grab; flex: none; }
+.picker-grip { width: 40px; height: 5px; border-radius: 3px; background: var(--border); margin: 4px auto 2px; }
+.picker-sheet { transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.picker-sheet.closing { transform: translateY(100%) !important; }
+.picker-backdrop { transition: background-color 0.24s ease; }
+.picker-backdrop.closing { background: rgb(15 25 35 / 0%); pointer-events: none; }
 .picker-title { display: flex; align-items: center; justify-content: space-between; padding: 2px 8px 6px 16px; font-weight: 600; }
 .picker-body { display: flex; flex-direction: column; min-height: 0; flex: 1; }
 .picker-search { position: relative; padding: 8px; border-bottom: 1px solid var(--border); }

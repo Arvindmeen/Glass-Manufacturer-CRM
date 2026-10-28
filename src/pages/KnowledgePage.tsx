@@ -9,14 +9,14 @@ import { useDB } from '../store/db'
 import type { KnowledgeEntry } from '../types'
 import { blankKnowledge, KnowledgeForm, SECTIONS, sectionLabel, structureKnowledge } from '../components/KnowledgeForm'
 import { StepImage } from '../components/StepImage'
-import { PageHead, SearchInput, toast } from '../components/ui'
+import { PageHead, SearchInput, Sheet, toast, useClosing } from '../components/ui'
 import { VoiceRecorder } from '../components/VoiceRecorder'
 
 export function KnowledgePage() {
   return (
     <Routes>
       <Route index element={<KnowledgeList />} />
-      <Route path="chat" element={<KnowledgeChat />} />
+      <Route path="chat" element={<Navigate to="/knowledge" replace />} />
       <Route path=":id" element={<KnowledgeView />} />
     </Routes>
   )
@@ -29,6 +29,7 @@ function KnowledgeList() {
   const [q, setQ] = useState('')
   const [section, setSection] = useState<string>('')
   const [draft, setDraft] = useState<KnowledgeEntry | null>(null)
+  const [chatOpen, setChatOpen] = useState(false)
 
   const list = knowledge
     .filter((k) => !section || k.section === section)
@@ -41,7 +42,7 @@ function KnowledgeList() {
         title={t('nav.knowledge')}
         fabs={
           <>
-            <button className="btn fab-alt" onClick={() => navigate('/knowledge/chat')}>
+            <button className="btn fab-alt" onClick={() => setChatOpen(true)}>
               <MessageCircle size={18} /> {t('kb.chat')}
             </button>
             <button className="btn primary icon fab-main" onClick={() => setDraft(blankKnowledge())} aria-label={t('common.add')}>
@@ -77,6 +78,7 @@ function KnowledgeList() {
         </div>
       </div>
 
+      {chatOpen && <ChatSheet onClose={() => setChatOpen(false)} />}
       {draft && (
         <KnowledgeForm
           entry={draft}
@@ -144,16 +146,17 @@ function KnowledgeView() {
 
 let chatHistory: ChatMessage[] = []
 
-function KnowledgeChat() {
+function ChatSheet({ onClose }: { onClose: () => void }) {
   const t = useT()
+  const [closing, close] = useClosing(onClose)
   const [messages, setMessages] = useState<ChatMessage[]>(chatHistory)
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
-  const end = useRef<HTMLDivElement>(null)
+  const body = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     chatHistory = messages
-    end.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+    body.current?.scrollTo({ top: body.current.scrollHeight, behavior: 'smooth' })
   }, [messages, busy])
 
   const send = async (text: string) => {
@@ -175,8 +178,35 @@ function KnowledgeChat() {
   }
 
   return (
-    <div className="chat">
-      <PageHead title={t('kb.chat')} back />
+    <Sheet
+      title={t('kb.chat')}
+      onClose={close}
+      closing={closing}
+      wide
+      height="78dvh"
+      bodyRef={body}
+      footer={
+        <form
+          className="chat-input"
+          onSubmit={(e) => {
+            e.preventDefault()
+            void send(input)
+          }}
+        >
+          <VoiceMini onText={send} />
+          <input
+            className="input"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder={t('kb.chatPlaceholder')}
+            enterKeyHint="send"
+          />
+          <button className="btn primary icon" type="submit" disabled={!input.trim() || busy} aria-label={t('kb.chat')}>
+            <Send size={18} />
+          </button>
+        </form>
+      }
+    >
       <div className="chat-messages">
         {messages.map((m, i) => (
           <div key={i} className={`bubble ${m.role}`}>
@@ -188,22 +218,8 @@ function KnowledgeChat() {
             <Loader2 size={16} className="spin" />
           </div>
         )}
-        <div ref={end} />
       </div>
-      <form
-        className="chat-input"
-        onSubmit={(e) => {
-          e.preventDefault()
-          void send(input)
-        }}
-      >
-        <VoiceMini onText={send} />
-        <input className="input" value={input} onChange={(e) => setInput(e.target.value)} placeholder={t('kb.chatPlaceholder')} />
-        <button className="btn primary icon" type="submit" disabled={!input.trim() || busy} aria-label={t('kb.chat')}>
-          <Send size={18} />
-        </button>
-      </form>
-    </div>
+    </Sheet>
   )
 }
 

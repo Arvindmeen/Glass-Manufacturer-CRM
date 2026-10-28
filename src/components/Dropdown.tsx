@@ -3,10 +3,10 @@ import { createPortal } from 'react-dom'
 import { Calendar, Check, ChevronDown, ChevronLeft, ChevronRight, Plus, Search, X } from 'lucide-react'
 import { useLocale, useT } from '../i18n'
 import { formatDate, localISO, matches, todayISO } from '../lib/format'
+import { isPhone, useClosing } from './ui'
 
 /* ---------- shared panel: popover on desktop, bottom sheet on phones ---------- */
 
-const isPhone = () => window.matchMedia('(max-width: 699px)').matches
 
 function Panel({
   anchor,
@@ -14,14 +14,39 @@ function Panel({
   onClose,
   children,
   width,
+  closing,
 }: {
   anchor: HTMLElement | null
   title: string
   onClose: () => void
   children: ReactNode
   width?: number
+  closing?: boolean
 }) {
   const panel = useRef<HTMLDivElement>(null)
+  const dragY = useRef<number | null>(null)
+
+  // Phones: drag the grip/title down to dismiss.
+  const grip = {
+    onPointerDown: (e: React.PointerEvent) => {
+      if ((e.target as HTMLElement).closest('button')) return
+      dragY.current = e.clientY
+      if (panel.current) panel.current.style.transition = 'none'
+      ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+    },
+    onPointerMove: (e: React.PointerEvent) => {
+      if (dragY.current == null || !panel.current) return
+      panel.current.style.transform = `translateY(${Math.max(0, e.clientY - dragY.current)}px)`
+    },
+    onPointerUp: (e: React.PointerEvent) => {
+      if (dragY.current == null || !panel.current) return
+      const dy = e.clientY - dragY.current
+      dragY.current = null
+      panel.current.style.transition = ''
+      if (dy > 80) onClose()
+      else panel.current.style.transform = ''
+    },
+  }
   const [phone] = useState(isPhone)
   const [pos, setPos] = useState<{ top: number; left: number; width: number; maxHeight: number } | null>(null)
 
@@ -81,14 +106,16 @@ function Panel({
 
   return createPortal(
     phone ? (
-      <div className="picker-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-        <div ref={panel} className="picker-sheet" role="dialog" aria-label={title}>
-          <div className="picker-grip" />
-          <div className="picker-title">
+      <div className={`picker-backdrop${closing ? ' closing' : ''}`} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+        <div ref={panel} className={`picker-sheet${closing ? ' closing' : ''}`} role="dialog" aria-label={title}>
+          <div className="picker-drag" {...grip}>
+            <div className="picker-grip" />
+            <div className="picker-title">
             <span>{title}</span>
-            <button className="btn ghost icon" onClick={onClose} aria-label="Close">
-              <X size={20} />
-            </button>
+              <button className="btn ghost icon" onClick={onClose} aria-label="Close">
+                <X size={20} />
+              </button>
+            </div>
           </div>
           {children}
         </div>
@@ -148,11 +175,13 @@ export function Select({
   const current = options.find((o) => o.value === value)
   const list = useMemo(() => options.filter((o) => matches(q, o.label, o.sub)), [options, q])
 
-  const close = () => {
+  const finish = () => {
     setOpen(false)
     setQ('')
     trigger?.focus()
   }
+  const [closing, animatedClose] = useClosing(finish)
+  const close = () => (isPhone() ? animatedClose() : finish())
   const pick = (v: string | undefined) => {
     onChange(v)
     close()
@@ -192,7 +221,7 @@ export function Select({
         )}
       </button>
       {open && (
-        <Panel anchor={trigger} title={label} onClose={close} width={260}>
+        <Panel anchor={trigger} title={label} onClose={close} width={260} closing={closing}>
           <div className="picker-body" onKeyDown={onKey}>
             {search && (
               <div className="picker-search">
@@ -283,10 +312,15 @@ export function DatePicker({
   const first = addDays(month, -((month.getDay() + 6) % 7))
   const days = Array.from({ length: 42 }, (_, i) => addDays(first, i))
 
-  const pick = (iso: string) => {
-    onChange(iso)
+  const finish = () => {
     setOpen(false)
     trigger?.focus()
+  }
+  const [closing, animatedClose] = useClosing(finish)
+  const close = () => (isPhone() ? animatedClose() : finish())
+  const pick = (iso: string) => {
+    onChange(iso)
+    close()
   }
   const openPicker = () => {
     const d = parse(value || today)
@@ -311,7 +345,7 @@ export function DatePicker({
         {value === today && <span className="chip primary">{t('date.today')}</span>}
       </button>
       {open && (
-        <Panel anchor={trigger} title={label} onClose={() => setOpen(false)} width={320}>
+        <Panel anchor={trigger} title={label} onClose={close} width={320} closing={closing}>
           <div className="calendar">
             {quick && (
               <div className="cal-quick">

@@ -6,7 +6,7 @@ import { blankMeeting, deleteMeeting, fullName, saveMeeting, useDB } from '../st
 import type { Meeting } from '../types'
 import { DatePicker, RemovableChip, Select, ToggleChips } from './Dropdown'
 import { companyOptions, personOptions } from './options'
-import { Field, Sheet } from './ui'
+import { Field, Sheet, useClosing } from './ui'
 import { VoiceRecorder } from './VoiceRecorder'
 
 interface VoiceMeeting {
@@ -28,6 +28,7 @@ export function MeetingForm({
   startWithVoice?: boolean
 }) {
   const t = useT()
+  const [closing, close] = useClosing(onClose)
   const { people, companies } = useDB()
   const [d, setD] = useState(meeting ?? blankMeeting(defaults))
   const isNew = !meeting
@@ -64,7 +65,7 @@ ${list || '(none)'}`,
   return (
     <Sheet
       title={isNew ? t('meeting.new') : d.title || t('meeting.title')}
-      onClose={onClose}
+      onClose={close} closing={closing}
       footer={
         <>
           {!isNew && (
@@ -73,7 +74,7 @@ ${list || '(none)'}`,
               onClick={() => {
                 if (confirm(t('common.confirmDelete'))) {
                   deleteMeeting(d.id)
-                  onClose()
+                  close()
                 }
               }}
             >
@@ -81,7 +82,7 @@ ${list || '(none)'}`,
             </button>
           )}
           <span className="grow" />
-          <button className="btn" onClick={onClose}>
+          <button className="btn" onClick={close}>
             {t('common.cancel')}
           </button>
           <button
@@ -89,7 +90,7 @@ ${list || '(none)'}`,
             disabled={!d.summary.trim() && !d.title.trim()}
             onClick={() => {
               saveMeeting(d)
-              onClose()
+              close()
             }}
           >
             {t('common.save')}

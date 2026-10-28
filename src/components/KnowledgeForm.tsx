@@ -5,7 +5,7 @@ import { chatJSON, text as asText } from '../lib/openai'
 import { deleteKnowledge, saveKnowledge, uid } from '../store/db'
 import type { KnowledgeEntry } from '../types'
 import { Select } from './Dropdown'
-import { Field, Sheet } from './ui'
+import { Field, Sheet, useClosing } from './ui'
 
 export const SECTIONS = ['installation', 'products', 'troubleshooting', 'sales'] as const
 export const sectionLabel = (s: string): TKey =>
@@ -59,6 +59,7 @@ export function KnowledgeForm({
   onDeleted?: () => void
 }) {
   const t = useT()
+  const [closing, close] = useClosing(onClose)
   const [d, setD] = useState(entry)
   const [tags, setTags] = useState(entry.tags.join(', '))
   const setStep = (n: number, text: string) =>
@@ -67,7 +68,7 @@ export function KnowledgeForm({
   return (
     <Sheet
       title={isNew ? t('kb.record') : d.title}
-      onClose={onClose}
+      onClose={close} closing={closing}
       wide
       footer={
         <>
@@ -85,7 +86,7 @@ export function KnowledgeForm({
             </button>
           )}
           <span className="grow" />
-          <button className="btn" onClick={onClose}>
+          <button className="btn" onClick={close}>
             {t('common.cancel')}
           </button>
           <button
@@ -98,7 +99,7 @@ export function KnowledgeForm({
                 tags: tags.split(',').map((x) => x.trim()).filter(Boolean),
               })
               onSaved?.(saved)
-              onClose()
+              close()
             }}
           >
             {t('common.save')}

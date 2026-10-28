@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ChevronLeft, Search, X } from 'lucide-react'
 
@@ -32,19 +32,62 @@ export function PageHead({
   )
 }
 
+const SHEET_MS = 240
+export const isPhone = () => window.matchMedia('(max-width: 699px)').matches
+
+/**
+ * Animated close for anything rendered in a <Sheet>: call `close()` instead of `onClose()`,
+ * pass `closing` to the Sheet; `onClose` runs once the exit animation has finished.
+ */
+export function useClosing(onClose: () => void) {
+  const [closing, setClosing] = useState(false)
+  const done = useRef(onClose)
+  useEffect(() => {
+    done.current = onClose
+  })
+  const close = useCallback(() => {
+    setClosing((was) => {
+      if (!was)
+        window.setTimeout(() => {
+          done.current()
+          setClosing(false) // components that stay mounted (pickers) can open again
+        }, SHEET_MS)
+      return true
+    })
+  }, [])
+  return [closing, close] as const
+}
+
+/**
+ * Modal sheet. On phones it is a bottom sheet: it opens at its natural size, the grip
+ * (or header) can be dragged up to full screen, back down, or further down to close.
+ */
 export function Sheet({
   title,
   onClose,
+  closing,
   children,
   footer,
   wide,
+  height,
+  bodyRef,
 }: {
   title: ReactNode
   onClose: () => void
+  closing?: boolean
   children: ReactNode
   footer?: ReactNode
   wide?: boolean
+  /** Resting height on phones (CSS length); default is the content height. */
+  height?: string
+  bodyRef?: React.Ref<HTMLDivElement>
 }) {
+  const [phone] = useState(isPhone)
+  const [full, setFull] = useState(false)
+  const el = useRef<HTMLDivElement>(null)
+  const base = useRef(0)
+  const drag = useRef<{ y: number; h: number; t: number; lastY: number; lastT: number; onGrip: boolean } | null>(null)
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
     window.addEventListener('keydown', onKey)
@@ -55,23 +98,118 @@ export function Sheet({
     }
   }, [onClose])
 
+  const restingHeight = () => {
+    if (!base.current && el.current) base.current = el.current.offsetHeight
+    return base.current
+  }
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (!phone || !el.current || (e.target as HTMLElement).closest('button, input, a')) return
+    restingHeight()
+    const now = performance.now()
+    drag.current = {
+      y: e.clientY,
+      h: el.current.offsetHeight,
+      t: now,
+      lastY: e.clientY,
+      lastT: now,
+      // Pointer capture retargets later events, so remember where the press started.
+      onGrip: !!(e.target as HTMLElement).closest('.sheet-grip'),
+    }
+    el.current.style.transition = 'none'
+    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+  }
+
+  const onPointerMove = (e: React.PointerEvent) => {
+    const d = drag.current
+    const s = el.current
+    if (!d || !s) return
+    const target = d.h - (e.clientY - d.y)
+    const fullH = window.innerHeight
+    if (target >= base.current) {
+      s.style.height = `${Math.min(target, fullH)}px`
+      s.style.transform = ''
+    } else {
+      s.style.height = `${base.current}px`
+      s.style.transform = `translateY(${base.current - target}px)`
+    }
+    d.lastY = e.clientY
+    d.lastT = performance.now()
+  }
+
+  const onPointerUp = (e: React.PointerEvent) => {
+    const d = drag.current
+    const s = el.current
+    drag.current = null
+    if (!d || !s) return
+    s.style.transition = ''
+    // A tap (no real movement) on the grip toggles full screen.
+    if (Math.abs(e.clientY - d.y) < 6) {
+      s.style.transform = ''
+      if (d.onGrip) toggleFull()
+      return
+    }
+    const fullH = window.innerHeight
+    const target = d.h - (e.clientY - d.y)
+    const velocity = (e.clientY - d.lastY) / Math.max(1, performance.now() - d.lastT) // px/ms, + = down
+    // From full screen a drag-down returns to the resting size; closing needs a drag from rest (or a fling).
+    const fromFull = d.h > base.current + 10
+    const shouldClose = fromFull
+      ? velocity > 1.2 && target < base.current * 0.5
+      : target < base.current * 0.75 || (velocity > 0.6 && target < base.current)
+    if (shouldClose) {
+      onClose() // the closing class slides it out from where it is
+      return
+    }
+    s.style.transform = ''
+    const goFull = velocity < -0.5 || target > base.current + (fullH - base.current) * 0.35
+    setFull(goFull)
+    s.style.height = goFull ? '' : `${base.current}px`
+  }
+
+  const toggleFull = () => {
+    restingHeight()
+    if (el.current) el.current.style.height = full ? `${base.current}px` : ''
+    setFull((f) => !f)
+  }
+
+  const dragProps = phone ? { onPointerDown, onPointerMove, onPointerUp, onPointerCancel: onPointerUp } : {}
+
   return (
-    <div className="sheet-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className={`sheet${wide ? ' wide' : ''}`} role="dialog" aria-modal="true">
-        <div className="sheet-head">
-          <h2>{title}</h2>
-          <button className="btn ghost icon" onClick={onClose} aria-label="Close">
-            <X size={20} />
-          </button>
+    <div className={`sheet-backdrop${closing ? ' closing' : ''}`} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div
+        ref={el}
+        className={`sheet${wide ? ' wide' : ''}${full ? ' full' : ''}${closing ? ' closing' : ''}`}
+        role="dialog"
+        aria-modal="true"
+        style={phone && height && !full ? { height } : undefined}
+      >
+        <div className="sheet-top" {...dragProps}>
+          {phone && (
+            <div
+              className="sheet-grip"
+              role="button"
+              tabIndex={0}
+              aria-label={full ? 'Collapse' : 'Expand'}
+              onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleFull()}
+            />
+          )}
+          <div className="sheet-head">
+            <h2>{title}</h2>
+            <button className="btn ghost icon" onClick={onClose} aria-label="Close">
+              <X size={20} />
+            </button>
+          </div>
         </div>
-        {children}
+        <div className="sheet-body" ref={bodyRef}>
+          {children}
+        </div>
         {footer && <div className="sheet-foot">{footer}</div>}
       </div>
     </div>
   )
 }
 
-/** Labelled form row. Use `group` when it holds buttons (chips, pickers) rather than one input. */
 export function Field({ label, children, group }: { label: string; children: ReactNode; group?: boolean }) {
   const Tag = group ? 'div' : 'label'
   return (

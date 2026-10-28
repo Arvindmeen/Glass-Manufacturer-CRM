@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 import { useT, type TKey } from '../i18n'
 import { useDB } from '../store/db'
-import { Sheet, Toaster } from './ui'
+import { Sheet, Toaster, useClosing } from './ui'
 import { VoiceCommand } from './VoiceCommand'
 
 type NavItem = { to: string; label: TKey; icon: ReactNode }
@@ -91,22 +91,28 @@ export function Layout() {
         </button>
       </nav>
 
-      {moreOpen && (
-        <Sheet title={t('nav.more')} onClose={() => setMoreOpen(false)}>
-          <div className="list">
-            {secondary.map((n) => (
-              <NavLink key={n.to} to={n.to} className="list-item" onClick={() => setMoreOpen(false)}>
-                {n.icon}
-                <span className="grow title">{t(n.label)}</span>
-                {badge(n.to)}
-              </NavLink>
-            ))}
-          </div>
-        </Sheet>
-      )}
+      {moreOpen && <MoreSheet badge={badge} onClose={() => setMoreOpen(false)} />}
 
       {voiceOpen && <VoiceCommand onClose={() => setVoiceOpen(false)} />}
       <Toaster />
     </div>
+  )
+}
+
+function MoreSheet({ badge, onClose }: { badge: (to: string) => ReactNode; onClose: () => void }) {
+  const t = useT()
+  const [closing, close] = useClosing(onClose)
+  return (
+    <Sheet title={t('nav.more')} onClose={close} closing={closing}>
+      <div className="list">
+        {secondary.map((n) => (
+          <NavLink key={n.to} to={n.to} className="list-item" onClick={close}>
+            {n.icon}
+            <span className="grow title">{t(n.label)}</span>
+            {badge(n.to)}
+          </NavLink>
+        ))}
+      </div>
+    </Sheet>
   )
 }
