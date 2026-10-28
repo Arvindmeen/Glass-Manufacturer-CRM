@@ -107,6 +107,7 @@ export const de: Record<TKey, string> = {
   'kb.section': 'Bereich',
   'kb.tags': 'Stichworte',
   'kb.step': 'Schritt {n}',
+  'kb.summary': 'Zusammenfassung',
   'kb.addStep': 'Schritt hinzufügen',
 
   'inbox.quote': 'Offertanfrage',

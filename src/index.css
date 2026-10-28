@@ -371,3 +371,27 @@ h3 { font-size: 0.95rem; }
   .quote-item .dims { grid-column: 3; }
   .quote-item .btn { grid-column: 4; }
 }
+
+/* ---------- knowledge ---------- */
+.steps { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+.steps li { overflow: hidden; }
+.step-image { display: block; width: 100%; height: auto; }
+.step-text { padding: 12px 14px; }
+.step-text p { margin: 4px 0 0; }
+@media (min-width: 700px) {
+  .steps li { display: grid; grid-template-columns: 260px 1fr; align-items: center; }
+}
+
+.chat { display: flex; flex-direction: column; min-height: calc(100dvh - var(--nav-h) - 60px); }
+.chat-messages { flex: 1; display: flex; flex-direction: column; gap: 8px; padding-bottom: 12px; }
+.bubble { max-width: 85%; padding: 10px 14px; border-radius: 16px; white-space: pre-wrap; font-size: 0.95rem; }
+.bubble.user { align-self: flex-end; background: var(--primary); color: #fff; border-bottom-right-radius: 4px; }
+.bubble.assistant { align-self: flex-start; background: var(--surface); box-shadow: var(--shadow); border-bottom-left-radius: 4px; }
+.chat-input {
+  position: sticky; bottom: calc(var(--nav-h) + 8px + env(safe-area-inset-bottom));
+  display: flex; gap: 8px; padding: 8px; background: var(--surface); border-radius: 14px; box-shadow: 0 -2px 16px rgb(0 0 0 / 10%);
+}
+@media (min-width: 900px) {
+  .chat { min-height: calc(100dvh - 76px); }
+  .chat-input { bottom: 16px; }
+}

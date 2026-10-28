@@ -16,17 +16,22 @@ export function VoiceRecorder({
   big,
   autoStart,
   onCancel,
+  onError,
 }: {
   onText: (text: string) => Promise<void> | void
   label?: string
   big?: boolean
   autoStart?: boolean
   onCancel?: () => void
+  /** When set, errors are reported here instead of inline. */
+  onError?: (msg: string) => void
 }) {
   const t = useT()
   const rec = useRecorder()
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+  const [inlineError, setInlineError] = useState('')
+  const setError = (msg: string) => (onError && msg ? onError(msg) : setInlineError(msg))
+  const error = inlineError
   const started = useRef(false)
 
   const begin = () => {
@@ -41,6 +46,10 @@ export function VoiceRecorder({
       begin()
     }
   })
+
+  useEffect(() => {
+    if (rec.state === 'denied' && onError) onError(t('voice.micDenied'))
+  }, [rec.state, onError, t])
 
   const finish = async () => {
     const blob = await rec.stop()
@@ -62,7 +71,7 @@ export function VoiceRecorder({
       <button className={big ? 'btn lg block accent' : 'btn'} onClick={begin} disabled={busy}>
         <Mic size={18} /> {label ?? t('voice.start')}
       </button>
-      {rec.state === 'denied' && <span className="error">{t('voice.micDenied')}</span>}
+      {rec.state === 'denied' && !onError && <span className="error">{t('voice.micDenied')}</span>}
       {error && <span className="error">{error}</span>}
       {(rec.state === 'recording' || busy) && (
         <VoiceOverlay

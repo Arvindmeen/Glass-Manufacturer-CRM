@@ -114,6 +114,7 @@ export const en = {
   'kb.section': 'Section',
   'kb.tags': 'Tags',
   'kb.step': 'Step {n}',
+  'kb.summary': 'Summary',
   'kb.addStep': 'Add step',
 
   // inbox
