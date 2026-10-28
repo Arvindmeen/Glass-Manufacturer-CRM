@@ -65,8 +65,10 @@ h3 { font-size: 0.95rem; }
   display: grid; place-items: center; transform: translateY(-14px); cursor: pointer;
 }
 .voice-fab:active { transform: translateY(-14px) scale(0.95); }
+.voice-fab svg { display: block; flex: none; }
 .bottom-nav .voice-fab {
-  width: 60px; height: 60px; padding: 0; border-radius: 50%;
+  display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 0;
+  width: 60px; height: 60px; padding: 0; border-radius: 50%; line-height: 0;
   background: linear-gradient(135deg, #ff7a45, var(--accent)); color: #fff;
   box-shadow: 0 4px 14px rgb(228 87 46 / 45%), 0 0 0 4px var(--surface);
 }
