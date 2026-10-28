@@ -10,11 +10,14 @@ export function useRecorder() {
   const recorder = useRef<MediaRecorder | null>(null)
   const chunks = useRef<Blob[]>([])
   const timer = useRef<number | undefined>(undefined)
+  const audio = useRef<{ ctx: AudioContext; analyser: AnalyserNode; data: Uint8Array<ArrayBuffer> } | null>(null)
 
   const cleanup = useCallback(() => {
     window.clearInterval(timer.current)
     recorder.current?.stream.getTracks().forEach((t) => t.stop())
     recorder.current = null
+    void audio.current?.ctx.close()
+    audio.current = null
   }, [])
 
   useEffect(() => cleanup, [cleanup])
@@ -28,12 +31,31 @@ export function useRecorder() {
       rec.ondataavailable = (e) => e.data.size && chunks.current.push(e.data)
       rec.start()
       recorder.current = rec
+      try {
+        const ctx = new AudioContext()
+        const analyser = ctx.createAnalyser()
+        analyser.fftSize = 256
+        ctx.createMediaStreamSource(stream).connect(analyser)
+        audio.current = { ctx, analyser, data: new Uint8Array(analyser.fftSize) }
+      } catch {
+        // level meter is optional
+      }
       setSeconds(0)
       timer.current = window.setInterval(() => setSeconds((s) => s + 1), 1000)
       setState('recording')
     } catch {
       setState('denied')
     }
+  }, [])
+
+  /** Current input loudness, 0..1. Cheap enough to call every animation frame. */
+  const getLevel = useCallback(() => {
+    const a = audio.current
+    if (!a) return 0
+    a.analyser.getByteTimeDomainData(a.data)
+    let sum = 0
+    for (const v of a.data) sum += ((v - 128) / 128) ** 2
+    return Math.min(1, Math.sqrt(sum / a.data.length) * 4)
   }, [])
 
   const stop = useCallback(
@@ -59,7 +81,7 @@ export function useRecorder() {
     setState('idle')
   }, [cleanup])
 
-  return { state, seconds, start, stop, cancel }
+  return { state, seconds, start, stop, cancel, getLevel }
 }
 
 export const formatSeconds = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`

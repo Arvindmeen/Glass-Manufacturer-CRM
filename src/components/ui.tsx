@@ -91,7 +91,7 @@ export function SearchInput({
 export function Avatar({ text, square }: { text: string; square?: boolean }) {
   const initials = text
     .split(/\s+/)
-    .filter(Boolean)
+    .filter((w) => /^\p{L}/u.test(w))
     .slice(0, 2)
     .map((w) => w[0]?.toUpperCase())
     .join('')

@@ -6,6 +6,7 @@ import { applyProposals, interpret, type Proposal, type Ref, type ReviewItem } f
 import { MissingKeyError } from '../lib/openai'
 import { fullName, useDB } from '../store/db'
 import { Field, Sheet, toast } from './ui'
+import { VoiceOverlay } from './VoiceOverlay'
 import { VoiceRecorder } from './VoiceRecorder'
 
 const icons: Record<Proposal['kind'], ReactNode> = {
@@ -24,8 +25,11 @@ export function VoiceCommand({ onClose }: { onClose: () => void }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
-  const run = async (text: string) => {
+  const [typedRun, setTypedRun] = useState(false)
+
+  const run = async (text: string, fromVoice = true) => {
     if (!text.trim()) return
+    setTypedRun(!fromVoice)
     setTranscript(text)
     setBusy(true)
     setError('')
@@ -47,19 +51,16 @@ export function VoiceCommand({ onClose }: { onClose: () => void }) {
     return (
       <Sheet title={t('voice.start')} onClose={onClose}>
         <div className="stack">
-          {busy ? (
-            <button className="btn lg block" disabled>
-              {t('voice.processing')}
-            </button>
-          ) : (
-            <VoiceRecorder big autoStart onText={run} />
+          <VoiceRecorder big autoStart onText={run} onCancel={onClose} />
+          {busy && typedRun && (
+            <VoiceOverlay mode="processing" seconds={0} getLevel={() => 0} onDone={() => {}} onCancel={() => {}} />
           )}
           <form
             className="row-gap"
             style={{ flexWrap: 'nowrap' }}
             onSubmit={(e) => {
               e.preventDefault()
-              void run(typed)
+              void run(typed, false)
             }}
           >
             <input

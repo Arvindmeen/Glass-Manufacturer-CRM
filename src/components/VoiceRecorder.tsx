@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { Loader2, Mic, Square } from 'lucide-react'
+import { Mic } from 'lucide-react'
 import { useT } from '../i18n'
 import { MissingKeyError, transcribe } from '../lib/openai'
-import { formatSeconds, useRecorder } from '../lib/useRecorder'
+import { useRecorder } from '../lib/useRecorder'
 import { getSettings } from '../store/settings'
+import { VoiceOverlay } from './VoiceOverlay'
 
 /**
  * Record → Done → transcribe. Calls `onText` with the transcript and
@@ -14,11 +15,13 @@ export function VoiceRecorder({
   label,
   big,
   autoStart,
+  onCancel,
 }: {
   onText: (text: string) => Promise<void> | void
   label?: string
   big?: boolean
   autoStart?: boolean
+  onCancel?: () => void
 }) {
   const t = useT()
   const rec = useRecorder()
@@ -54,24 +57,25 @@ export function VoiceRecorder({
     }
   }
 
-  const size = big ? 'btn lg block' : 'btn'
   return (
     <div className="stack" style={{ gap: 6 }}>
-      {busy ? (
-        <button className={`${size}`} disabled>
-          <Loader2 size={18} className="spin" /> {t('voice.processing')}
-        </button>
-      ) : rec.state === 'recording' ? (
-        <button className={`${size} accent pulse`} onClick={finish}>
-          <Square size={16} fill="currentColor" /> {t('voice.stop')} · {formatSeconds(rec.seconds)}
-        </button>
-      ) : (
-        <button className={`${size} ${big ? 'accent' : ''}`} onClick={begin}>
-          <Mic size={18} /> {label ?? t('voice.start')}
-        </button>
-      )}
+      <button className={big ? 'btn lg block accent' : 'btn'} onClick={begin} disabled={busy}>
+        <Mic size={18} /> {label ?? t('voice.start')}
+      </button>
       {rec.state === 'denied' && <span className="error">{t('voice.micDenied')}</span>}
       {error && <span className="error">{error}</span>}
+      {(rec.state === 'recording' || busy) && (
+        <VoiceOverlay
+          mode={busy ? 'processing' : 'recording'}
+          seconds={rec.seconds}
+          getLevel={rec.getLevel}
+          onDone={() => void finish()}
+          onCancel={() => {
+            rec.cancel()
+            onCancel?.()
+          }}
+        />
+      )}
     </div>
   )
 }
