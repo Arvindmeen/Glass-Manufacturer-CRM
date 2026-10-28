@@ -65,7 +65,16 @@ export function CompaniesPage() {
 
   return (
     <>
-      <PageHead title={t('nav.companies')}>
+      <PageHead
+        title={t('nav.companies')}
+        fabs={
+          view === 'list' && (
+            <button className="btn primary icon fab-main" onClick={() => setCreating(true)} aria-label={t('company.new')}>
+              <Plus size={22} />
+            </button>
+          )
+        }
+      >
         <div className="segmented" style={{ width: 'auto' }}>
           <button className={view === 'list' ? 'active' : ''} onClick={() => setParams({}, { replace: true })}>
             {t('company.list')}
@@ -74,9 +83,6 @@ export function CompaniesPage() {
             {t('company.map')}
           </button>
         </div>
-        <button className="btn primary icon" onClick={() => setCreating(true)} aria-label={t('company.new')}>
-          <Plus size={20} />
-        </button>
       </PageHead>
       <SearchInput value={q} onChange={setQ} placeholder={t('common.search')} />
 

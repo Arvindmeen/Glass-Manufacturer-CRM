@@ -37,14 +37,19 @@ function KnowledgeList() {
 
   return (
     <>
-      <PageHead title={t('nav.knowledge')}>
-        <button className="btn icon" onClick={() => setDraft(blankKnowledge())} aria-label={t('common.add')}>
-          <Plus size={20} />
-        </button>
-        <button className="btn primary" onClick={() => navigate('/knowledge/chat')}>
-          <MessageCircle size={18} /> {t('kb.chat')}
-        </button>
-      </PageHead>
+      <PageHead
+        title={t('nav.knowledge')}
+        fabs={
+          <>
+            <button className="btn fab-alt" onClick={() => navigate('/knowledge/chat')}>
+              <MessageCircle size={18} /> {t('kb.chat')}
+            </button>
+            <button className="btn primary icon fab-main" onClick={() => setDraft(blankKnowledge())} aria-label={t('common.add')}>
+              <Plus size={22} />
+            </button>
+          </>
+        }
+      />
 
       <VoiceRecorder big label={t('kb.record')} onText={async (text) => setDraft(await structureKnowledge(text))} />
 

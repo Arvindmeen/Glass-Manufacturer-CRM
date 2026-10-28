@@ -39,7 +39,7 @@ h3 { font-size: 0.95rem; }
 /* ---------- shell ---------- */
 .app { min-height: 100dvh; }
 .main {
-  padding: 16px 16px calc(var(--nav-h) + 24px + env(safe-area-inset-bottom));
+  padding: 16px 16px calc(var(--nav-h) + 96px + env(safe-area-inset-bottom));
   max-width: 1100px;
   margin: 0 auto;
 }
@@ -424,7 +424,7 @@ h3 { font-size: 0.95rem; }
 .select-trigger.v-add:hover { background: var(--primary-soft); border-color: var(--primary); }
 
 .picker-pop {
-  position: fixed; z-index: 80; display: flex; flex-direction: column; overflow: hidden;
+  position: fixed; z-index: 80; display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior: contain;
   background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
   box-shadow: 0 12px 32px rgb(15 25 35 / 18%); animation: pop 0.12s ease-out;
 }
@@ -434,7 +434,7 @@ h3 { font-size: 0.95rem; }
   display: flex; align-items: flex-end; animation: fade 0.15s ease-out;
 }
 .picker-sheet {
-  width: 100%; max-height: 80dvh; display: flex; flex-direction: column; background: var(--surface);
+  width: 100%; max-height: 88dvh; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; background: var(--surface);
   border-radius: 18px 18px 0 0; padding: 6px 0 env(safe-area-inset-bottom); animation: up 0.2s ease-out;
 }
 .picker-grip { width: 40px; height: 4px; border-radius: 2px; background: var(--border); margin: 4px auto 2px; }
@@ -461,13 +461,13 @@ h3 { font-size: 0.95rem; }
 }
 
 .calendar { padding: 10px; }
-.cal-quick { display: flex; flex-wrap: wrap; gap: 6px; padding-bottom: 10px; margin-bottom: 4px; border-bottom: 1px solid var(--border); }
-.cal-quick .chip { border: 0; cursor: pointer; padding: 6px 12px; font-size: 0.85rem; }
+.cal-quick { display: flex; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 6px; padding-bottom: 10px; margin-bottom: 4px; border-bottom: 1px solid var(--border); }
+.cal-quick .chip { border: 0; cursor: pointer; padding: 6px 10px; font-size: 0.82rem; flex: none; }
 .cal-head { display: flex; align-items: center; justify-content: space-between; font-weight: 600; text-transform: capitalize; }
 .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
 .cal-wd { text-align: center; font-size: 0.72rem; font-weight: 600; color: var(--muted); padding: 6px 0; text-transform: uppercase; }
 .cal-day {
-  aspect-ratio: 1; min-height: 36px; border: 0; border-radius: 50%; background: none; cursor: pointer;
+  width: 36px; height: 36px; justify-self: center; border: 0; border-radius: 50%; background: none; cursor: pointer;
   font-size: 0.9rem; font-variant-numeric: tabular-nums; display: grid; place-items: center;
 }
 .cal-day:hover { background: var(--surface-2); }
@@ -478,7 +478,7 @@ h3 { font-size: 0.95rem; }
 .cal-foot { display: flex; justify-content: space-between; padding-top: 6px; }
 @media (max-width: 699px) {
   .calendar { padding: 4px 14px 14px; }
-  .cal-day { min-height: 44px; font-size: 1rem; }
+  .cal-day { width: 44px; height: 44px; font-size: 1rem; }
 }
 
 .toggle-chip {
@@ -494,3 +494,21 @@ h3 { font-size: 0.95rem; }
 }
 .chips .chip-remove svg { opacity: 0.85; }
 .picker-option .grow { flex: 1; min-width: 0; }
+
+/* ---------- page actions: header on desktop, floating on phones ---------- */
+.page-fabs { display: flex; align-items: center; gap: 8px; }
+@media (max-width: 899px) {
+  .page-fabs {
+    position: fixed; z-index: 25; right: 16px; bottom: calc(var(--nav-h) + 16px + env(safe-area-inset-bottom));
+    flex-direction: column; align-items: flex-end; gap: 12px;
+  }
+  .page-fabs .fab-main {
+    width: 56px; height: 56px; border-radius: 18px;
+    box-shadow: 0 6px 18px rgb(15 92 110 / 35%);
+  }
+  .page-fabs .fab-alt {
+    min-height: 44px; border-radius: 14px; padding: 0 16px; font-weight: 600; color: var(--primary);
+    box-shadow: 0 4px 14px rgb(0 0 0 / 14%); border-color: transparent;
+  }
+  .page-fabs .fab-main:active, .page-fabs .fab-alt:active { transform: scale(0.95); }
+}

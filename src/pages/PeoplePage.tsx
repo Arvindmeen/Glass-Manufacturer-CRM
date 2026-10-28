@@ -23,11 +23,14 @@ export function PeoplePage() {
 
   return (
     <>
-      <PageHead title={t('nav.people')}>
-        <button className="btn primary icon" onClick={() => setCreating(true)} aria-label={t('person.new')}>
-          <Plus size={20} />
-        </button>
-      </PageHead>
+      <PageHead
+        title={t('nav.people')}
+        fabs={
+          <button className="btn primary icon fab-main" onClick={() => setCreating(true)} aria-label={t('person.new')}>
+            <Plus size={22} />
+          </button>
+        }
+      />
       <SearchInput value={q} onChange={setQ} placeholder={t('common.search')} />
       <div className="list">
         {list.length === 0 && <div className="empty">{t('common.none')}</div>}

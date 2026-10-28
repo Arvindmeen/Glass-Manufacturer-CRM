@@ -25,11 +25,14 @@ export function TasksPage() {
 
   return (
     <>
-      <PageHead title={t('task.title')}>
-        <button className="btn primary icon" onClick={() => setEditing('new')} aria-label={t('task.new')}>
-          <Plus size={20} />
-        </button>
-      </PageHead>
+      <PageHead
+        title={t('task.title')}
+        fabs={
+          <button className="btn primary icon fab-main" onClick={() => setEditing('new')} aria-label={t('task.new')}>
+            <Plus size={22} />
+          </button>
+        }
+      />
 
       <div className="segmented board-tabs" style={{ marginBottom: 12 }}>
         {columns.map((s) => (

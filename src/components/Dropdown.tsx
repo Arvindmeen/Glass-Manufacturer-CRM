@@ -27,16 +27,25 @@ function Panel({
 
   useLayoutEffect(() => {
     if (phone || !anchor) return
-    const place = () => {
+    const place = (e?: Event) => {
+      // Scrolling inside the panel itself must not move it.
+      if (e?.target instanceof Node && panel.current?.contains(e.target)) return
       const r = anchor.getBoundingClientRect()
-      const w = Math.max(width ?? 0, r.width)
+      const w = Math.min(Math.max(width ?? 0, r.width), window.innerWidth - 16)
       const below = window.innerHeight - r.bottom - 12
       const above = r.top - 12
-      const h = panel.current?.offsetHeight ?? 320
-      const up = below < Math.min(h, 320) && above > below
-      const maxHeight = Math.min(380, up ? above : below)
+      // Natural content height, independent of any max-height applied earlier.
+      const natural = panel.current?.scrollHeight ?? 320
+      const up = natural > below && above > below
+      let maxHeight = Math.max(160, up ? above : below)
+      let top = up ? r.top - 6 - Math.min(natural, maxHeight) : r.bottom + 6
+      // Fits neither side but fits the screen: slide it up so nothing is cut off.
+      if (natural > maxHeight && natural <= window.innerHeight - 16) {
+        maxHeight = natural
+        top = Math.max(8, window.innerHeight - natural - 8)
+      }
       setPos({
-        top: up ? r.top - 6 - Math.min(h, maxHeight) : r.bottom + 6,
+        top,
         left: Math.min(Math.max(8, r.left), window.innerWidth - w - 8),
         width: w,
         maxHeight,

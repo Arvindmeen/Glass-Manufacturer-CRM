@@ -2,7 +2,21 @@ import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react
 import { Link, useNavigate } from 'react-router-dom'
 import { ChevronLeft, Search, X } from 'lucide-react'
 
-export function PageHead({ title, back, children }: { title: ReactNode; back?: boolean; children?: ReactNode }) {
+/**
+ * Page title row. `fabs` are the page's main actions: inline in the header on desktop,
+ * floating bottom-right (thumb reach) on phones.
+ */
+export function PageHead({
+  title,
+  back,
+  children,
+  fabs,
+}: {
+  title: ReactNode
+  back?: boolean
+  children?: ReactNode
+  fabs?: ReactNode
+}) {
   const navigate = useNavigate()
   return (
     <div className="page-head">
@@ -13,6 +27,7 @@ export function PageHead({ title, back, children }: { title: ReactNode; back?: b
       )}
       <h1>{title}</h1>
       {children}
+      {fabs && <div className="page-fabs">{fabs}</div>}
     </div>
   )
 }
