@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Mic } from 'lucide-react'
 import { useT } from '../i18n'
-import { MissingKeyError, transcribe } from '../lib/openai'
+import { aiErrorMessage } from '../lib/aiError'
+import { transcribe } from '../lib/openai'
 import { useRecorder } from '../lib/useRecorder'
 import { vaultStatus } from '../lib/keyVault'
 import { ErrorText } from './ui'
@@ -69,7 +70,7 @@ export function VoiceRecorder({
       const text = await transcribe(blob)
       await onText(text)
     } catch (e) {
-      setError(e instanceof MissingKeyError ? t('voice.noKey') : t('voice.error', { msg: (e as Error).message }))
+      setError(aiErrorMessage(e, t))
     } finally {
       setBusy(false)
     }

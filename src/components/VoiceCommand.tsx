@@ -32,7 +32,8 @@ import {
   type ReviewItem,
   type Step,
 } from '../lib/interpret'
-import { MissingKeyError } from '../lib/openai'
+import { aiErrorMessage } from '../lib/aiError'
+import { checkInput, GuardError } from '../lib/guard'
 import { markRecent } from '../lib/recent'
 import { fullName, getDB, useDB } from '../store/db'
 import type { TaskStatus } from '../types'
@@ -129,6 +130,9 @@ export function VoiceCommand({ onClose }: { onClose: () => void }) {
     setBusy(true)
     setError('')
     try {
+      // Misuse attempts are refused here, before anything leaves the device.
+      const refused = checkInput(text)
+      if (refused) throw new GuardError(refused)
       const r = await interpret(text, page)
       setResult(r)
       setItems(r.items)
@@ -139,7 +143,7 @@ export function VoiceCommand({ onClose }: { onClose: () => void }) {
         finish(nav ? [nav] : [])
       }
     } catch (e) {
-      setError(e instanceof MissingKeyError ? t('voice.noKey') : t('voice.error', { msg: (e as Error).message }))
+      setError(aiErrorMessage(e, t))
     } finally {
       setBusy(false)
     }

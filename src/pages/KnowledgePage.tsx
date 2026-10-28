@@ -4,7 +4,9 @@ import { ChevronRight, Loader2, MessageCircle, Pencil, Plus, Send } from 'lucide
 import { useT } from '../i18n'
 import { ask } from '../lib/assistant'
 import { matches } from '../lib/format'
-import { MissingKeyError, type ChatMessage } from '../lib/openai'
+import { aiErrorMessage } from '../lib/aiError'
+import { checkInput, GuardError } from '../lib/guard'
+import type { ChatMessage } from '../lib/openai'
 import { useDB } from '../store/db'
 import type { KnowledgeEntry } from '../types'
 import { blankKnowledge, KnowledgeForm, SECTIONS, sectionLabel } from '../components/KnowledgeForm'
@@ -169,10 +171,13 @@ function ChatSheet({ onClose }: { onClose: () => void }) {
     setInput('')
     setBusy(true)
     try {
-      const answer = await ask(next)
+      const refused = checkInput(q)
+      if (refused) throw new GuardError(refused)
+      // Refused or failed exchanges (marked ⚠) are never sent back to the model.
+      const answer = await ask(next.filter((m, i) => !m.content.startsWith('⚠') && !next[i + 1]?.content.startsWith('⚠')))
       setMessages([...next, { role: 'assistant', content: answer }])
     } catch (e) {
-      const msg = e instanceof MissingKeyError ? t('voice.noKey') : t('voice.error', { msg: (e as Error).message })
+      const msg = aiErrorMessage(e, t)
       setMessages([...next, { role: 'assistant', content: `⚠ ${msg}` }])
     } finally {
       setBusy(false)

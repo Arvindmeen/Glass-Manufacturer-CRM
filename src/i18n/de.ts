@@ -103,6 +103,9 @@ export const de: Record<TKey, string> = {
   'proposal.maybe': 'Schon im CRM?',
   'proposal.target': 'Ergänzen bei',
 
+  'guard.blocked': 'Ich helfe nur bei der Arbeit in diesem CRM.',
+  'guard.too_long': 'Das ist zu lang. Bitte kürzer fassen.',
+  'guard.rate': 'Zu viele Anfragen. Bitte eine Minute warten.',
   'kb.installation': 'Montage',
   'kb.products': 'Produkte',
   'kb.troubleshooting': 'Störungen',

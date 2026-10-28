@@ -109,6 +109,10 @@ export const en = {
   'proposal.maybe': 'Already in the CRM?',
   'proposal.target': 'Add to',
 
+  'guard.blocked': 'I can only help with work in this CRM.',
+  'guard.too_long': 'That is too long. Please keep it shorter.',
+  'guard.rate': 'Too many requests. Please wait a minute.',
+
   // knowledge
   'kb.installation': 'Installations',
   'kb.products': 'Products',

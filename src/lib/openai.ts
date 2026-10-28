@@ -1,3 +1,4 @@
+import { checkOutput, GUARD_RULES, GuardError, takeRateSlot } from './guard'
 import { keyForRequest } from './keyVault'
 
 /** The key is only ever sent to this origin. */
@@ -40,6 +41,7 @@ function extFor(type: string) {
 
 export async function transcribe(audio: Blob): Promise<string> {
   const k = key()
+  takeRateSlot()
   let lastError: Error | undefined
   for (const model of TRANSCRIBE_MODELS) {
     const form = new FormData()
@@ -64,20 +66,28 @@ export interface ChatMessage {
 }
 
 export async function chat(messages: ChatMessage[], opts: { json?: boolean; temperature?: number } = {}) {
+  const k = key()
+  takeRateSlot()
+  // Every request carries the security rules at the end of its system message.
+  const guarded = messages.map((m, i) => (i === 0 && m.role === 'system' ? { ...m, content: m.content + GUARD_RULES } : m))
+  if (guarded[0]?.role !== 'system') guarded.unshift({ role: 'system', content: GUARD_RULES.trim() })
   const res = await fetch(`${BASE}/chat/completions`, {
     ...SAFE_FETCH,
     method: 'POST',
-    headers: { Authorization: `Bearer ${key()}`, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${k}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: CHAT_MODEL,
-      messages,
+      messages: guarded,
       temperature: opts.temperature ?? 0.2,
       ...(opts.json ? { response_format: { type: 'json_object' } } : {}),
     }),
   })
   if (!res.ok) throw await failure(res)
   const body = (await res.json()) as { choices: { message: { content: string } }[] }
-  return body.choices[0]?.message.content ?? ''
+  const reply = body.choices[0]?.message.content ?? ''
+  // Replies that leak instructions, secrets or bulk personal data never reach the screen.
+  if (!checkOutput(reply)) throw new GuardError('blocked')
+  return reply
 }
 
 /** AI JSON is untrusted: turn any value into a trimmed string ("" for objects, null, …). */
