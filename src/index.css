@@ -258,7 +258,7 @@ h3 { font-size: 0.95rem; }
 .stack { display: grid; gap: 10px; }
 .error { color: var(--danger); font-size: 0.9rem; }
 .toast {
-  position: fixed; left: 50%; bottom: calc(var(--nav-h) + 24px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+  position: fixed; left: 50%; bottom: calc(var(--nav-h) + 64px + env(safe-area-inset-bottom)); transform: translateX(-50%);
   background: var(--text); color: #fff; padding: 10px 16px; border-radius: 10px; z-index: 60; font-size: 0.9rem;
   animation: up 0.2s ease-out;
 }

@@ -22,7 +22,7 @@ Guiding rule for every screen: show only what a sales rep on the road needs. No 
 - Match existing records (no duplicate "Schreinerei Huber"); link new items to each other.
 - Review list: accept / edit / reject per proposal, then save all accepted.
 
-## Phase 4 — Remaining modules
+## Phase 4 — Remaining modules ✅
 - Knowledge base: sections, product search, step-by-step installation tutorials, voice-to-entry with review, AI chat using CRM + knowledge as context.
 - Email inbox mockup: quote requests → extract (customer, products, quantities, dimensions) → confirm → "Transfer to ERP" (simulated).
 - Companies map + route planning: select companies → order stops (nearest neighbour + 2-opt) → open in Google Maps.
