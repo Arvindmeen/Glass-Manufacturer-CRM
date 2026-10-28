@@ -249,11 +249,14 @@ h3 { font-size: 0.95rem; }
 .sheet-top { flex: none; padding: 14px 16px 0; }
 .sheet-head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
 .sheet-head h2 { flex: 1; font-size: 1.1rem; }
-.sheet-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 2px 16px 16px; }
+.sheet-body { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 2px 16px 8px; }
+/* Buttons follow the content; only a chat keeps its input at the very bottom. */
+.sheet:has(.chat-input) .sheet-body { flex: 1 1 auto; }
 .sheet-foot {
   flex: none; display: flex; gap: 8px; align-items: center; background: var(--surface);
-  padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border);
+  padding: 8px 16px calc(12px + env(safe-area-inset-bottom));
 }
+.sheet:has(.chat-input) .sheet-foot { border-top: 1px solid var(--border); padding-top: 10px; }
 .sheet-foot .grow { flex: 1; }
 .sheet-grip { position: relative; height: 22px; margin: -10px auto 2px; width: 80px; cursor: grab; outline: none; }
 .sheet-grip::before {
@@ -264,8 +267,10 @@ h3 { font-size: 0.95rem; }
 
 @media (max-width: 699px) {
   .sheet-top { touch-action: none; user-select: none; }
-  .sheet.full { max-height: 100dvh; height: 100dvh; border-radius: 0; }
-  .sheet.full .sheet-top { padding-top: calc(14px + env(safe-area-inset-top)); }
+  .sheet.full { max-height: 100dvh; height: auto; }
+  /* A chat fills the whole screen when expanded. */
+  .sheet.full:has(.chat-input) { height: 100dvh; border-radius: 0; }
+  .sheet.full:has(.chat-input) .sheet-top { padding-top: calc(14px + env(safe-area-inset-top)); }
   .sheet.closing { transform: translateY(100%) !important; }
 }
 @media (min-width: 700px) {

@@ -98,6 +98,16 @@ export function Sheet({
     }
   }, [onClose])
 
+  /** How tall the sheet would be with all content visible. */
+  const naturalHeight = () => {
+    const s = el.current
+    if (!s) return 0
+    const part = (sel: string) => (s.querySelector(sel) as HTMLElement | null)
+    return (part('.sheet-top')?.offsetHeight ?? 0) + (part('.sheet-body')?.scrollHeight ?? 0) + (part('.sheet-foot')?.offsetHeight ?? 0)
+  }
+  /** Forms grow only as far as their content; sheets with a fixed height (chat) can fill the screen. */
+  const maxHeight = () => (height ? window.innerHeight : Math.min(window.innerHeight, naturalHeight()))
+
   const restingHeight = () => {
     if (!base.current && el.current) base.current = el.current.offsetHeight
     return base.current
@@ -125,9 +135,8 @@ export function Sheet({
     const s = el.current
     if (!d || !s) return
     const target = d.h - (e.clientY - d.y)
-    const fullH = window.innerHeight
     if (target >= base.current) {
-      s.style.height = `${Math.min(target, fullH)}px`
+      s.style.height = `${Math.min(target, Math.max(maxHeight(), base.current))}px`
       s.style.transform = ''
     } else {
       s.style.height = `${base.current}px`
@@ -149,7 +158,6 @@ export function Sheet({
       if (d.onGrip) toggleFull()
       return
     }
-    const fullH = window.innerHeight
     const target = d.h - (e.clientY - d.y)
     const velocity = (e.clientY - d.lastY) / Math.max(1, performance.now() - d.lastT) // px/ms, + = down
     // From full screen a drag-down returns to the resting size; closing needs a drag from rest (or a fling).
@@ -162,13 +170,15 @@ export function Sheet({
       return
     }
     s.style.transform = ''
-    const goFull = velocity < -0.5 || target > base.current + (fullH - base.current) * 0.35
+    const room = maxHeight() - base.current
+    const goFull = room > 8 && (velocity < -0.5 || target > base.current + room * 0.35)
     setFull(goFull)
     s.style.height = goFull ? '' : `${base.current}px`
   }
 
   const toggleFull = () => {
     restingHeight()
+    if (!full && maxHeight() - base.current <= 8) return // already shows everything
     if (el.current) el.current.style.height = full ? `${base.current}px` : ''
     setFull((f) => !f)
   }
