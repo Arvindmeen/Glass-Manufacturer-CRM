@@ -38,7 +38,13 @@ Guiding rule for every screen: show only what a sales rep on the road needs. No 
 ## Decisions
 - Default language: English (German switchable in the UI).
 - Map: Google Maps only (keyless embed + directions link), no other map service.
-- OpenAI key: entered by the user in Settings, never in the repo.
+- OpenAI key: entered by the user in Settings, never in the repo or the build.
+  - Encrypted at rest with AES-256-GCM; the AES key is a non-extractable WebCrypto key in IndexedDB (raw bytes can never be read or exported).
+  - Plaintext only in memory inside `src/lib/keyVault.ts`, sent only to `api.openai.com` (no cookies, no referrer, no cache); OpenAI error messages are masked.
+  - UI shows only `sk-…last4` after saving; replace / remove.
+  - CSP + security headers (vercel.json, also on `npm run preview`) block foreign scripts and allow the key to reach OpenAI only.
+  - `scripts/check-secrets.mjs` runs before every build and commit and fails on anything key-shaped.
+  - Known limit of a backend-free prototype: code running on this origin while the app is open can use the key. Production moves it to the server (Part 2).
 
 ## Open questions for the client
 - ERP name for the "Transfer to …" button.

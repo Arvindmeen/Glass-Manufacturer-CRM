@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Check, Globe, Loader2, Plus, Search } from 'lucide-react'
 import { useT, type TKey } from '../i18n'
 import { blankCompany, saveCompany, useDB } from '../store/db'
@@ -78,17 +78,22 @@ export function LeadsPage() {
   const [phase, setPhase] = useState<Phase>('idle')
   const [results, setResults] = useState<Lead[]>([])
 
+  const timers = useRef<number[]>([])
+  useEffect(() => () => timers.current.forEach(clearTimeout), [])
+
   const search = () => {
+    if (phase === 'register' || phase === 'websites') return
+    timers.current.forEach(clearTimeout)
     setPhase('register')
-    window.setTimeout(() => setPhase('websites'), 900)
-    window.setTimeout(() => {
+    timers.current = [window.setTimeout(() => setPhase('websites'), 900)]
+    timers.current.push(window.setTimeout(() => {
       const byType = LEADS.filter((l) => l.type === type && l.employees >= minEmployees)
       const inRegion = byType.filter((l) => !region || l.canton === region)
       // Static data: fall back to neighbouring regions so the list never looks empty.
       const list = inRegion.length >= 3 ? inRegion : [...inRegion, ...byType.filter((l) => !inRegion.includes(l))]
       setResults(list.sort((a, b) => b.fit - a.fit))
       setPhase('done')
-    }, 1900)
+    }, 1900))
   }
 
   const add = (l: Lead) => {

@@ -3,9 +3,11 @@ import { Mic } from 'lucide-react'
 import { useT } from '../i18n'
 import { MissingKeyError, transcribe } from '../lib/openai'
 import { useRecorder } from '../lib/useRecorder'
-import { getSettings } from '../store/settings'
+import { vaultStatus } from '../lib/keyVault'
 import { ErrorText } from './ui'
 import { VoiceOverlay } from './VoiceOverlay'
+
+const MAX_SECONDS = 600
 
 /**
  * Record → Done → transcribe. Calls `onText` with the transcript and
@@ -36,7 +38,7 @@ export function VoiceRecorder({
   const started = useRef(false)
 
   const begin = () => {
-    if (!getSettings().openaiKey) return setError(t('voice.noKey'))
+    if (!vaultStatus().hasKey) return setError(t('voice.noKey'))
     setError('')
     void rec.start()
   }
@@ -66,6 +68,11 @@ export function VoiceRecorder({
       setBusy(false)
     }
   }
+
+  // Safety stop: very long recordings exceed what one transcription request accepts.
+  useEffect(() => {
+    if (rec.state === 'recording' && rec.seconds >= MAX_SECONDS) void finish()
+  })
 
   return (
     <div className="stack" style={{ gap: 6 }}>

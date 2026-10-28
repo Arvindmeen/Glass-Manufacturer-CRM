@@ -151,5 +151,9 @@ export const de: Record<TKey, string> = {
   'settings.language': 'Sprache',
   'settings.resetData': 'Demodaten zurücksetzen',
   'settings.resetConfirm': 'Alle Daten durch Demodaten ersetzen?',
-  'settings.keyStored': 'Nur in diesem Browser gespeichert.',
+  'settings.keySession': 'Dieser Browser blockiert sicheren Speicher: Der Schlüssel gilt nur für diesen Tab.',
+  'settings.invalidKey': 'Kein OpenAI-Schlüssel (beginnt mit sk-).',
+  'settings.replaceKey': 'Ersetzen',
+  'settings.removeKeyConfirm': 'API-Schlüssel von diesem Gerät entfernen?',
+  'settings.keyStored': 'Verschlüsselt auf diesem Gerät. Nur an OpenAI gesendet.',
 }

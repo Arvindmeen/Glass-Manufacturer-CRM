@@ -5,7 +5,7 @@ import { ERP_NAME } from '../config'
 import { useLocale, useT } from '../i18n'
 import { formatDate, localISO, todayISO } from '../lib/format'
 import { findCompany } from '../lib/interpret'
-import { chatJSON, MissingKeyError } from '../lib/openai'
+import { chatJSON, MissingKeyError, text } from '../lib/openai'
 import { getDB, saveEmail, useDB } from '../store/db'
 import type { Email, QuoteRequest } from '../types'
 import { ErrorText, Field, PageHead } from '../components/ui'
@@ -72,20 +72,23 @@ Keep the email's language. Never invent values: use "" for anything the email do
     `From: ${email.fromName} <${email.fromEmail}>\nSubject: ${email.subject}\n\n${email.body}`,
   )
   return {
-    customer: r.customer ?? '',
-    contact: r.contact ?? email.fromName,
-    notes: r.notes ?? '',
-    items: (r.items ?? []).map((i) => ({
-      product: String(i.product ?? ''),
-      quantity: Number(i.quantity) || 1,
-      dimensions: String(i.dimensions ?? ''),
+    customer: text(r.customer),
+    contact: text(r.contact) || email.fromName,
+    notes: text(r.notes),
+    items: (Array.isArray(r.items) ? r.items : []).map((i) => ({
+      product: text(i?.product),
+      quantity: Math.max(1, Math.round(Number(i?.quantity)) || 1),
+      dimensions: text(i?.dimensions),
     })),
   }
 }
 
+const FREE_MAIL = /^(gmail|googlemail|outlook|hotmail|live|yahoo|icloud|me|gmx|bluewin|sunrise|hispeed|protonmail|proton|web)\./
+
 function matchCompany(email: Email, customer: string) {
   const db = getDB()
-  const domain = email.fromEmail.split('@')[1]?.toLowerCase()
+  const raw = email.fromEmail.split('@')[1]?.toLowerCase() ?? ''
+  const domain = FREE_MAIL.test(raw) ? '' : raw
   return (
     (customer && findCompany(db, customer)) ||
     db.companies.find((c) => domain && (c.email.toLowerCase().endsWith(`@${domain}`) || c.website.toLowerCase().includes(domain)))

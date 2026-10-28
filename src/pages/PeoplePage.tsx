@@ -35,7 +35,14 @@ export function PeoplePage() {
       <div className="list">
         {list.length === 0 && <div className="empty">{t('common.none')}</div>}
         {list.map((p) => (
-          <div key={p.id} className="list-item" onClick={() => navigate(`/people/${p.id}`)}>
+          <div
+            key={p.id}
+            className="list-item"
+            role="link"
+            tabIndex={0}
+            onClick={() => navigate(`/people/${p.id}`)}
+            onKeyDown={(e) => e.key === 'Enter' && navigate(`/people/${p.id}`)}
+          >
             <Avatar text={fullName(p)} />
             <div className="grow">
               <div className="title">{fullName(p)}</div>

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { useT, type TKey } from '../i18n'
-import { chatJSON } from '../lib/openai'
+import { chatJSON, text as asText } from '../lib/openai'
 import { deleteKnowledge, saveKnowledge, uid } from '../store/db'
 import type { KnowledgeEntry } from '../types'
 import { Select } from './Dropdown'
@@ -34,12 +34,14 @@ Return JSON: {"section": one of ${SECTIONS.join('|')}, "title": short title, "pr
   )
   return {
     ...blankKnowledge(),
-    section: (SECTIONS as readonly string[]).includes(r.section ?? '') ? r.section! : 'installation',
-    title: r.title ?? '',
-    product: r.product ?? '',
-    summary: r.summary ?? text,
-    steps: (r.steps ?? []).map((s) => ({ text: String(s.text ?? ''), image: s.image ? String(s.image) : undefined })),
-    tags: (r.tags ?? []).map(String),
+    section: (SECTIONS as readonly string[]).includes(asText(r.section)) ? asText(r.section) : 'installation',
+    title: asText(r.title),
+    product: asText(r.product),
+    summary: asText(r.summary) || text,
+    steps: (Array.isArray(r.steps) ? r.steps : [])
+      .map((s) => ({ text: asText(s?.text), image: asText(s?.image) || undefined }))
+      .filter((s) => s.text),
+    tags: (Array.isArray(r.tags) ? r.tags : []).map(asText).filter(Boolean),
   }
 }
 

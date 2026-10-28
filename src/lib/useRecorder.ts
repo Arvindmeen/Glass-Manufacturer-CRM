@@ -11,6 +11,9 @@ export function useRecorder() {
   const chunks = useRef<Blob[]>([])
   const timer = useRef<number | undefined>(undefined)
   const audio = useRef<{ ctx: AudioContext; analyser: AnalyserNode; data: Uint8Array<ArrayBuffer> } | null>(null)
+  /** Bumped by cancel so a microphone grant that arrives late is released at once. */
+  const session = useRef(0)
+  const mounted = useRef(false)
 
   const cleanup = useCallback(() => {
     window.clearInterval(timer.current)
@@ -20,11 +23,22 @@ export function useRecorder() {
     audio.current = null
   }, [])
 
-  useEffect(() => cleanup, [cleanup])
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+      cleanup()
+    }
+  }, [cleanup])
 
   const start = useCallback(async () => {
+    const mine = ++session.current
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      if (mine !== session.current || !mounted.current) {
+        stream.getTracks().forEach((t) => t.stop())
+        return
+      }
       const mimeType = preferredTypes.find((t) => MediaRecorder.isTypeSupported(t))
       const rec = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
       chunks.current = []
@@ -36,6 +50,7 @@ export function useRecorder() {
         const analyser = ctx.createAnalyser()
         analyser.fftSize = 256
         ctx.createMediaStreamSource(stream).connect(analyser)
+        void ctx.resume() // iOS starts audio contexts suspended
         audio.current = { ctx, analyser, data: new Uint8Array(analyser.fftSize) }
       } catch {
         // level meter is optional
@@ -75,6 +90,7 @@ export function useRecorder() {
   )
 
   const cancel = useCallback(() => {
+    session.current++
     if (recorder.current) recorder.current.onstop = null
     if (recorder.current?.state === 'recording') recorder.current.stop()
     cleanup()

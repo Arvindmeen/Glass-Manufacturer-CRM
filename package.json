@@ -5,9 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "check:secrets": "node scripts/check-secrets.mjs",
+    "build": "node scripts/check-secrets.mjs && tsc -b && vite build && node scripts/check-secrets.mjs",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "prepare": "git config core.hooksPath .githooks || true"
   },
   "dependencies": {
     "lucide-react": "^1.62.0",

@@ -1,6 +1,7 @@
-import { useState } from 'react'
-import { Eye, EyeOff, Trash2 } from 'lucide-react'
+import { useState, useSyncExternalStore } from 'react'
+import { Eye, EyeOff, Lock } from 'lucide-react'
 import { useT } from '../i18n'
+import { KEY_PATTERN, removeKey, saveKey, subscribeVault, vaultStatus } from '../lib/keyVault'
 import { resetDemoData } from '../store/db'
 import { updateSettings, useSettings, type Lang } from '../store/settings'
 import { Field, PageHead, Section, toast } from '../components/ui'
@@ -8,42 +9,107 @@ import { Field, PageHead, Section, toast } from '../components/ui'
 export function SettingsPage() {
   const t = useT()
   const settings = useSettings()
+  const vault = useSyncExternalStore(subscribeVault, vaultStatus)
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState('')
   const [show, setShow] = useState(false)
+  const [error, setError] = useState('')
+  const showInput = !vault.hasKey || editing
+
+  const submit = async () => {
+    const value = draft.trim()
+    if (!KEY_PATTERN.test(value)) return setError(t('settings.invalidKey'))
+    await saveKey(value)
+    // Drop the plaintext from component state right away.
+    setDraft('')
+    setShow(false)
+    setEditing(false)
+    setError('')
+    toast(t('voice.saved'))
+  }
 
   return (
     <>
       <PageHead title={t('nav.settings')} />
       <div className="card form" style={{ padding: 16 }}>
-        <Field label={t('settings.language')}>
+        <Field label={t('settings.language')} group>
           <div className="segmented">
-            {(['de', 'en'] as Lang[]).map((l) => (
+            {(['en', 'de'] as Lang[]).map((l) => (
               <button key={l} className={settings.lang === l ? 'active' : ''} onClick={() => updateSettings({ lang: l })} type="button">
                 {l === 'de' ? 'Deutsch' : 'English'}
               </button>
             ))}
           </div>
         </Field>
-        <Field label={t('settings.openaiKey')}>
-          <div className="row-gap" style={{ flexWrap: 'nowrap' }}>
-            <input
-              className="input"
-              type={show ? 'text' : 'password'}
-              autoComplete="off"
-              spellCheck={false}
-              placeholder="sk-…"
-              value={settings.openaiKey}
-              onChange={(e) => updateSettings({ openaiKey: e.target.value.trim() })}
-            />
-            <button className="btn icon" type="button" onClick={() => setShow((s) => !s)} aria-label="Show key">
-              {show ? <EyeOff size={18} /> : <Eye size={18} />}
-            </button>
-            {settings.openaiKey && (
-              <button className="btn icon" type="button" onClick={() => updateSettings({ openaiKey: '' })} aria-label={t('common.delete')}>
-                <Trash2 size={18} />
+
+        <Field label={t('settings.openaiKey')} group>
+          {showInput ? (
+            <form
+              className="row-gap"
+              style={{ flexWrap: 'nowrap' }}
+              onSubmit={(e) => {
+                e.preventDefault()
+                void submit()
+              }}
+            >
+              <input
+                className="input"
+                type={show ? 'text' : 'password'}
+                name="openai-key"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                data-1p-ignore
+                data-lpignore="true"
+                placeholder="sk-…"
+                value={draft}
+                onChange={(e) => {
+                  setDraft(e.target.value)
+                  setError('')
+                }}
+                aria-label={t('settings.openaiKey')}
+              />
+              <button className="btn icon" type="button" onClick={() => setShow((s) => !s)} aria-label={show ? 'Hide' : 'Show'}>
+                {show ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
-            )}
-          </div>
-          <span className="muted small">{t('settings.keyStored')}</span>
+              <button className="btn primary" type="submit" disabled={!draft.trim()}>
+                {t('common.save')}
+              </button>
+              {editing && (
+                <button
+                  className="btn ghost"
+                  type="button"
+                  onClick={() => {
+                    setEditing(false)
+                    setDraft('')
+                    setError('')
+                  }}
+                >
+                  {t('common.cancel')}
+                </button>
+              )}
+            </form>
+          ) : (
+            <div className="key-saved">
+              <Lock size={16} />
+              <span className="grow mono">{vault.hint}</span>
+              <button className="btn small" type="button" onClick={() => setEditing(true)}>
+                {t('settings.replaceKey')}
+              </button>
+              <button
+                className="btn small danger"
+                type="button"
+                onClick={() => {
+                  if (confirm(t('settings.removeKeyConfirm'))) void removeKey()
+                }}
+              >
+                {t('common.delete')}
+              </button>
+            </div>
+          )}
+          {error && <span className="error">{error}</span>}
+          <span className="muted small">{vault.persistent ? t('settings.keyStored') : t('settings.keySession')}</span>
         </Field>
       </div>
       <Section title="Demo">

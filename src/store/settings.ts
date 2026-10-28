@@ -3,7 +3,6 @@ import { useSyncExternalStore } from 'react'
 export type Lang = 'de' | 'en'
 
 export interface Settings {
-  openaiKey: string
   lang: Lang
 }
 
@@ -14,7 +13,6 @@ export const browserLang = (): Lang => (navigator.language?.toLowerCase().starts
 
 /** Stored shape: the language is kept only once the user picked one in Settings. */
 interface Stored {
-  openaiKey?: string
   chosenLang?: Lang
 }
 
@@ -28,7 +26,7 @@ function load(): Settings {
     // ignore
   }
   const lang = stored.chosenLang === 'de' || stored.chosenLang === 'en' ? stored.chosenLang : browserLang()
-  return { openaiKey: stored.openaiKey ?? '', lang }
+  return { lang }
 }
 
 let settings = load()
@@ -36,7 +34,7 @@ const listeners = new Set<() => void>()
 
 export function updateSettings(patch: Partial<Settings>) {
   settings = { ...settings, ...patch }
-  stored = { openaiKey: settings.openaiKey, chosenLang: patch.lang ?? stored.chosenLang }
+  stored = { chosenLang: patch.lang ?? stored.chosenLang }
   try {
     localStorage.setItem(KEY, JSON.stringify(stored))
   } catch {

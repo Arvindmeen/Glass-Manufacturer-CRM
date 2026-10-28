@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useT } from '../i18n'
-import { chatJSON } from '../lib/openai'
+import { chatJSON, text as asText } from '../lib/openai'
 import { todayISO } from '../lib/format'
 import { blankMeeting, deleteMeeting, fullName, saveMeeting, useDB } from '../store/db'
 import type { Meeting } from '../types'
@@ -50,12 +50,14 @@ Candidates:
 ${list || '(none)'}`,
       text,
     )
+    const date = asText(r.date)
+    const ids = Array.isArray(r.participantIds) ? r.participantIds : []
     setD((x) => ({
       ...x,
-      title: r.title || x.title,
-      summary: [x.summary, r.summary || text].filter(Boolean).join('\n'),
-      date: r.date && /^\d{4}-\d{2}-\d{2}$/.test(r.date) ? r.date : x.date,
-      personIds: [...new Set([...x.personIds, ...(r.participantIds ?? []).filter((id) => people.some((p) => p.id === id))])],
+      title: asText(r.title) || x.title,
+      summary: [x.summary, asText(r.summary) || text].filter(Boolean).join('\n'),
+      date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : x.date,
+      personIds: [...new Set([...x.personIds, ...ids.filter((id) => people.some((p) => p.id === id))])],
     }))
   }
 

@@ -107,7 +107,7 @@ export function CompaniesPage() {
       ) : (
         <div className="map-layout">
           <div className="card map-card">
-            <iframe key={mapSrc} title={t('company.map')} src={mapSrc} className="map" loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
+            <iframe key={mapSrc} title={t('company.map')} src={mapSrc} className="map" loading="lazy" referrerPolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" />
           </div>
 
           {route ? (

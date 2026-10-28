@@ -161,7 +161,11 @@ export const en = {
   'settings.language': 'Language',
   'settings.resetData': 'Reset demo data',
   'settings.resetConfirm': 'Replace all data with demo data?',
-  'settings.keyStored': 'Stored in this browser only.',
+  'settings.keySession': 'This browser blocks secure storage: the key is kept for this tab only.',
+  'settings.invalidKey': 'This is not an OpenAI key (starts with sk-).',
+  'settings.replaceKey': 'Replace',
+  'settings.removeKeyConfirm': 'Remove the API key from this device?',
+  'settings.keyStored': 'Encrypted on this device. Only sent to OpenAI.',
 }
 
 export type TKey = keyof typeof en

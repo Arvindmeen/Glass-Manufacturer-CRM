@@ -512,3 +512,10 @@ h3 { font-size: 0.95rem; }
   }
   .page-fabs .fab-main:active, .page-fabs .fab-alt:active { transform: scale(0.95); }
 }
+
+.key-saved {
+  display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 6px 6px 6px 12px;
+  border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); color: var(--ok);
+}
+.key-saved .grow { flex: 1; color: var(--text); }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.9rem; }
