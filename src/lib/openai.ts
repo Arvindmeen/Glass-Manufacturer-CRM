@@ -1,4 +1,6 @@
-import { checkOutput, GUARD_RULES, GuardError, takeRateSlot } from './guard'
+import { checkOutput, GUARD_RULES, GuardError, hasForeignScript, languageRule, takeRateSlot } from './guard'
+import { getSettings } from '../store/settings'
+import { fullName, getDB } from '../store/db'
 import { keyForRequest } from './keyVault'
 
 /** The key is only ever sent to this origin. */
@@ -47,13 +49,20 @@ export async function transcribe(audio: Blob): Promise<string> {
     const form = new FormData()
     form.append('file', audio, `voice.${extFor(audio.type)}`)
     form.append('model', model)
+    // A fixed language stops short clips (often just a name) from being misdetected as e.g. Urdu.
+    form.append('language', getSettings().lang)
+    form.append('prompt', vocabulary())
     const res = await fetch(`${BASE}/audio/transcriptions`, {
       ...SAFE_FETCH,
       method: 'POST',
       headers: { Authorization: `Bearer ${k}` },
       body: form,
     })
-    if (res.ok) return ((await res.json()) as { text: string }).text.trim()
+    if (res.ok) {
+      const text = ((await res.json()) as { text: string }).text.trim()
+      if (hasForeignScript(text)) throw new GuardError('language')
+      return text
+    }
     lastError = await failure(res)
     if (res.status === 401) break
   }
@@ -66,28 +75,46 @@ export interface ChatMessage {
 }
 
 export async function chat(messages: ChatMessage[], opts: { json?: boolean; temperature?: number } = {}) {
+  // Every request carries the security and language rules at the end of its system message.
+  const rules = GUARD_RULES + languageRule(getSettings().lang)
+  const guarded = messages.map((m, i) => (i === 0 && m.role === 'system' ? { ...m, content: m.content + rules } : m))
+  if (guarded[0]?.role !== 'system') guarded.unshift({ role: 'system', content: rules.trim() })
+  let reply = await complete(guarded, opts)
+  if (hasForeignScript(reply)) {
+    // One retry with an explicit correction; never show another language or script.
+    const lang = getSettings().lang === 'de' ? 'German' : 'English'
+    reply = await complete([...guarded, { role: 'system', content: `Your previous answer used a language other than English or German. Answer again, only in ${lang}.` }], opts)
+    if (hasForeignScript(reply)) throw new GuardError('language')
+  }
+  // Replies that leak instructions, secrets or bulk personal data never reach the screen.
+  if (!checkOutput(reply)) throw new GuardError('blocked')
+  return reply
+}
+
+async function complete(messages: ChatMessage[], opts: { json?: boolean; temperature?: number }) {
   const k = key()
   takeRateSlot()
-  // Every request carries the security rules at the end of its system message.
-  const guarded = messages.map((m, i) => (i === 0 && m.role === 'system' ? { ...m, content: m.content + GUARD_RULES } : m))
-  if (guarded[0]?.role !== 'system') guarded.unshift({ role: 'system', content: GUARD_RULES.trim() })
   const res = await fetch(`${BASE}/chat/completions`, {
     ...SAFE_FETCH,
     method: 'POST',
     headers: { Authorization: `Bearer ${k}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: CHAT_MODEL,
-      messages: guarded,
+      messages,
       temperature: opts.temperature ?? 0.2,
       ...(opts.json ? { response_format: { type: 'json_object' } } : {}),
     }),
   })
   if (!res.ok) throw await failure(res)
   const body = (await res.json()) as { choices: { message: { content: string } }[] }
-  const reply = body.choices[0]?.message.content ?? ''
-  // Replies that leak instructions, secrets or bulk personal data never reach the screen.
-  if (!checkOutput(reply)) throw new GuardError('blocked')
-  return reply
+  return body.choices[0]?.message.content ?? ''
+}
+
+/** Names from the CRM as spelling hints for speech recognition (kept short). */
+function vocabulary() {
+  const db = getDB()
+  const names = [...db.companies.map((c) => c.name), ...db.people.map(fullName)]
+  return `CRM for a Swiss glass manufacturer. Names: ${names.join(', ')}`.slice(0, 800)
 }
 
 /** AI JSON is untrusted: turn any value into a trimmed string ("" for objects, null, …). */

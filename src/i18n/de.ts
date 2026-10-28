@@ -110,6 +110,7 @@ export const de: Record<TKey, string> = {
 
   'guard.blocked': 'Ich helfe nur bei der Arbeit in diesem CRM.',
   'guard.too_long': 'Das ist zu lang. Bitte kürzer fassen.',
+  'guard.language': 'Bitte auf Deutsch oder Englisch sprechen oder schreiben.',
   'guard.rate': 'Zu viele Anfragen. Bitte eine Minute warten.',
   'kb.installation': 'Montage',
   'kb.products': 'Produkte',

@@ -221,7 +221,7 @@ Rules:
   Route planning: page "companies_map" with routeIds = the company ids to visit. Quote from an email: recordId = email id and extract = true.
 - language: "de" or "en" only when the user asks to switch the app language. Use recordId for one record, query to search a list.
 - answer: when the user asks a question, answer briefly from the data below. Also give a one-sentence confirmation of what you will do otherwise. Never invent facts.
-- Write text in the language the user spoke. Leave unknown fields as "". Never invent phone numbers or emails.
+- Write text in English or German, matching the user. Leave unknown fields as "". Never invent phone numbers or emails.
 
 Return JSON: {"answer": "", "navigate": {"page": "", "recordId": "", "query": "", "routeIds": [], "extract": false} or null, "language": "", "actions": [ ... ]}
 pages: ${PAGES.join(', ')}. recordId may be a company, person, knowledge or email id.

@@ -116,6 +116,7 @@ export const en = {
 
   'guard.blocked': 'I can only help with work in this CRM.',
   'guard.too_long': 'That is too long. Please keep it shorter.',
+  'guard.language': 'Please speak or write in English or German.',
   'guard.rate': 'Too many requests. Please wait a minute.',
 
   // knowledge
