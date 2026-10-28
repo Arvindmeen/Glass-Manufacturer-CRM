@@ -54,7 +54,7 @@ export function useRecorder() {
 
   const cancel = useCallback(() => {
     if (recorder.current) recorder.current.onstop = null
-    recorder.current?.state === 'recording' && recorder.current.stop()
+    if (recorder.current?.state === 'recording') recorder.current.stop()
     cleanup()
     setState('idle')
   }, [cleanup])

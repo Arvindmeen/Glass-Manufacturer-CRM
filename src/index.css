@@ -269,3 +269,6 @@ h3 { font-size: 0.95rem; }
 @keyframes pulse { 50% { box-shadow: 0 0 0 16px rgb(228 87 46 / 0%); } 0%, 100% { box-shadow: 0 0 0 0 rgb(228 87 46 / 45%); } }
 .spin { animation: spin 0.9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+.proposal .title { font-weight: 600; }
+.proposal .sub { color: var(--muted); font-size: 0.85rem; }

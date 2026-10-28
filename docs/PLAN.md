@@ -4,7 +4,7 @@ Brief: [Trial_Task_CRM_Prototype_for_a_Glass_Manufacturer.pdf](./Trial_Task_CRM_
 
 Guiding rule for every screen: show only what a sales rep on the road needs. No explanatory copy, no decorative text, few clicks, one-handed on a phone.
 
-## Phase 1 — Foundation
+## Phase 1 — Foundation ✅
 - Vite + React + TypeScript, React Router.
 - Browser-only data store (localStorage) with typed entities: companies, people (many-to-many), meetings, tasks, knowledge entries, emails.
 - Realistic seed data: ~15 companies, ~25 people, meetings, tasks.
@@ -12,12 +12,12 @@ Guiding rule for every screen: show only what a sales rep on the road needs. No 
 - Responsive shell: bottom nav on phone, sidebar on desktop; floating voice button everywhere.
 - Settings: OpenAI key (stored in browser only), language, reset demo data.
 
-## Phase 2 — Core workflow: contacts, meetings, tasks
+## Phase 2 — Core workflow: contacts, meetings, tasks ✅
 - Companies and people: list + search, detail, create/edit, link/unlink, notes.
 - Meetings on company/person pages: date, participants, summary; fill a meeting by voice.
 - Tasks board: Planned / In progress / Done; linked to company/person and shown on their pages.
 
-## Phase 3 — Central voice command
+## Phase 3 — Central voice command ✅
 - Record → Done → transcribe (OpenAI) → interpret into proposed actions (create company/person/meeting/task, add notes).
 - Match existing records (no duplicate "Schreinerei Huber"); link new items to each other.
 - Review list: accept / edit / reject per proposal, then save all accepted.
