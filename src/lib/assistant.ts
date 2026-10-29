@@ -13,8 +13,10 @@ function fuzzy(token: string, word: string) {
   if (!token || !word) return false
   if (token === word) return true
   if (token.length >= 3 && word.startsWith(token)) return true
+  // Typos keep the first letter; short names allow one wrong letter, long ones two.
+  if (token[0] !== word[0] || token.length < 3) return false
   const d = distance(token, word)
-  return word.length <= 5 ? d <= 1 : d <= 2
+  return word.length <= 6 ? d <= 1 : d <= 2
 }
 
 /**
@@ -56,6 +58,34 @@ export function nameMatches(db: DB, question: string) {
     ),
   ]
   return { people: people.slice(0, 6), companies: companies.slice(0, 6), unknown }
+}
+
+export interface Choice {
+  id: string
+  kind: 'person' | 'company'
+  label: string
+  sub: string
+}
+
+/**
+ * When a question names someone only partly or misspelled ("who is ana", "phone of Huber"),
+ * return the matching records (names only) so the user can pick one before any details are shown.
+ * Returns null when the question is already unambiguous (full name given) or names nobody.
+ */
+export function clarify(db: DB, question: string): Choice[] | null {
+  const m = nameMatches(db, question)
+  if (!m.people.length && !m.companies.length) return null
+  const tokens = new Set((question.match(/[\p{L}][\p{L}'-]+/gu) ?? []).map((w) => normalize(w)))
+  const personWords = new Set(m.people.flatMap((p) => [normalize(p.firstName), normalize(p.lastName)]))
+  const fullPerson = m.people.some((p) => tokens.has(normalize(p.firstName)) && tokens.has(normalize(p.lastName)))
+  // A company counts as clearly named when the question uses a word of its name that is not also a person's name.
+  const clearCompany = m.companies.some((c) => words(c.name).some((w) => tokens.has(w) && !personWords.has(w)))
+  if (fullPerson || clearCompany) return null
+  const company = (id: string) => db.companies.find((c) => c.id === id)?.name ?? ''
+  return [
+    ...m.people.map((p) => ({ id: p.id, kind: 'person' as const, label: fullName(p), sub: [p.role, ...p.companyIds.map(company)].filter(Boolean).join(' · ') })),
+    ...m.companies.map((c) => ({ id: c.id, kind: 'company' as const, label: c.name, sub: [c.city, c.industry].filter(Boolean).join(' · ') })),
+  ].slice(0, 6)
 }
 
 /** Distinctive words of a name ("Schreinerei Huber AG" → huber, schreinerei), for mention checks. */

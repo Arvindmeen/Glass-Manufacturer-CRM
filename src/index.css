@@ -619,3 +619,16 @@ a.chip-link:focus-visible { outline: 2px solid var(--primary); outline-offset: 1
   .label-long { display: none; }
   .label-short { display: inline; }
 }
+
+/* "Which one do you mean?" quick replies */
+.choices { display: grid; gap: 6px; margin-top: 8px; }
+.choice {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 1px; width: 100%; text-align: left;
+  padding: 9px 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+.choice:hover:not(:disabled) { border-color: var(--primary); background: var(--hover); }
+.choice:disabled { cursor: default; opacity: 0.55; }
+.choice.picked { opacity: 1; border-color: var(--primary); background: var(--primary-soft); }
+.choice-label { font-weight: 600; color: var(--text); }
+.choice-sub { font-size: 0.8rem; color: var(--muted); }

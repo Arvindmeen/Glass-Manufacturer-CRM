@@ -121,6 +121,8 @@ export const de: Record<TKey, string> = {
   'kb.steps': 'Schritte',
   'kb.record': 'Wissen aufnehmen',
   'kb.chat': 'Fragen',
+  'chat.whichOne': 'Ich habe mehrere Treffer gefunden. Welchen meinen Sie?',
+  'chat.didYouMean': 'Meinen Sie:',
   'kb.chatPlaceholder': 'Frage stellen…',
   'kb.product': 'Produkt',
   'kb.section': 'Bereich',

@@ -129,6 +129,8 @@ export const en = {
   'kb.steps': 'Steps',
   'kb.record': 'Record know-how',
   'kb.chat': 'Ask',
+  'chat.whichOne': 'I found several matches. Which one do you mean?',
+  'chat.didYouMean': 'Did you mean:',
   'kb.chatPlaceholder': 'Ask anything…',
   'kb.product': 'Product',
   'kb.section': 'Section',
