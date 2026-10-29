@@ -242,7 +242,10 @@ export function VoiceCommand({ onClose }: { onClose: () => void }) {
               disabled={busy}
               enterKeyHint="send"
             />
-            <PhotoPicker iconOnly multiple label={t('voice.attach')} onPhotos={(p) => setPhotos((x) => [...x, ...p].slice(0, 8))} />
+            {/* Photos only become knowledge-entry step images, so the camera shows on Knowledge pages only. */}
+            {openedAt.startsWith('/knowledge') && (
+              <PhotoPicker iconOnly multiple label={t('voice.attach')} onPhotos={(p) => setPhotos((x) => [...x, ...p].slice(0, 8))} />
+            )}
             <button className="btn icon" type="submit" disabled={busy || !typed.trim()} aria-label={t('common.done')}>
               <Send size={18} />
             </button>
