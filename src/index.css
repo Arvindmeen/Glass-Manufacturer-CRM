@@ -316,6 +316,17 @@ h3 { font-size: 0.95rem; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 .proposal .title { font-weight: 600; }
+.card.proposal { padding: 12px; transition: border-color 0.15s, background 0.15s, opacity 0.15s; }
+.card.proposal.accepted { border-color: var(--ok); box-shadow: inset 3px 0 0 var(--ok); }
+.card.proposal.rejected { opacity: 0.55; }
+.card.proposal.rejected .proposal-body { text-decoration: line-through; }
+.proposal-body { cursor: pointer; }
+.proposal .btn.accept[aria-pressed='true'] { background: var(--ok); border-color: var(--ok); color: #fff; }
+.proposal .btn.reject[aria-pressed='true'] { background: var(--danger); border-color: var(--danger); color: #fff; }
+.proposal .btn.on { background: var(--hover); }
+.decision { display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; font-size: 0.8rem; font-weight: 600; }
+.decision.accepted { color: var(--ok); }
+.decision.rejected { color: var(--danger); }
 .proposal .sub { color: var(--muted); font-size: 0.85rem; }
 
 /* ---------- inline voice bar ---------- */

@@ -73,9 +73,12 @@ export interface Step {
 
 export type ProposalKind = Proposal['kind']
 
+/** Each proposal waits for the user: accept, reject or edit it, then save all accepted ones. */
+export type Decision = 'pending' | 'accepted' | 'rejected'
+
 export interface ReviewItem {
   key: string
-  accepted: boolean
+  decision: Decision
   proposal: Proposal
 }
 
@@ -474,13 +477,13 @@ export function resolve(db: DB, actions: RawAction[]): ReviewItem[] {
     }
   }
 
-  return fixed.map((proposal, i) => ({ key: `${i}-${proposal.kind}`, accepted: true, proposal }))
+  return fixed.map((proposal, i) => ({ key: `${i}-${proposal.kind}`, decision: 'pending' as const, proposal }))
 }
 
 /* ---------- saving ---------- */
 
 export function applyProposals(items: ReviewItem[], label: (kind: ProposalKind) => string): Step[] {
-  const accepted = items.filter((i) => i.accepted).map((i) => i.proposal)
+  const accepted = items.filter((i) => i.decision === 'accepted').map((i) => i.proposal)
   const ids = new Map<string, string>()
   const resolveRef = (ref?: string) => (ref ? (isNew(ref) ? ids.get(ref) : ref) : undefined)
   const resolveRefs = (refs: string[]) => refs.map(resolveRef).filter((x): x is string => !!x)

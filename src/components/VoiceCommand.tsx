@@ -19,6 +19,7 @@ import {
   X,
   Link2,
   Languages,
+  CheckCheck,
 } from 'lucide-react'
 import { useLocale, useT, type TKey } from '../i18n'
 import { formatDate } from '../lib/format'
@@ -33,6 +34,7 @@ import {
   type PageKey,
   type Proposal,
   type Ref,
+  type Decision,
   type ReviewItem,
   type Step,
   COMPANY_FIELDS,
@@ -202,7 +204,9 @@ export function VoiceCommand({ onClose }: { onClose: () => void }) {
 
   const update = (key: string, patch: Partial<ReviewItem>) =>
     setItems((list) => list.map((i) => (i.key === key ? { ...i, ...patch } : i)))
-  const acceptedCount = items.filter((i) => i.accepted).length
+  const acceptedCount = items.filter((i) => i.decision === 'accepted').length
+  const pendingCount = items.filter((i) => i.decision === 'pending').length
+  const acceptAll = () => setItems((list) => list.map((i) => (i.decision === 'pending' ? { ...i, decision: 'accepted' } : i)))
 
   const answer = result?.answer ? (
     <div className="assistant-answer">
@@ -305,6 +309,11 @@ export function VoiceCommand({ onClose }: { onClose: () => void }) {
             <RefreshCw size={16} />
           </button>
           <span className="grow" />
+          {pendingCount > 1 && (
+            <button className="btn" onClick={acceptAll}>
+              <CheckCheck size={18} /> {t('proposal.acceptAll')}
+            </button>
+          )}
           <button className="btn primary" disabled={acceptedCount === 0} onClick={save}>
             <Check size={18} /> {t('voice.saveAccepted', { n: acceptedCount })}
           </button>
@@ -382,8 +391,8 @@ function StepList({ steps, onComplete }: { steps: Step[]; onComplete: (target: s
 
 function useRefs(items: ReviewItem[]) {
   const { companies, people } = useDB()
-  const newCompanies = items.flatMap((i) => (i.proposal.kind === 'create_company' && i.accepted ? [i.proposal] : []))
-  const newPeople = items.flatMap((i) => (i.proposal.kind === 'create_person' && i.accepted ? [i.proposal] : []))
+  const newCompanies = items.flatMap((i) => (i.proposal.kind === 'create_company' && i.decision !== 'rejected' ? [i.proposal] : []))
+  const newPeople = items.flatMap((i) => (i.proposal.kind === 'create_person' && i.decision !== 'rejected' ? [i.proposal] : []))
 
   const label = (ref?: Ref) => {
     if (!ref) return ''
@@ -760,37 +769,68 @@ function ProposalCard({
     }
   }
 
+  const decision = item.decision
+  const decide = (d: Decision) => {
+    setEditing(false)
+    // Tapping the active choice again undoes it.
+    onChange({ decision: decision === d ? 'pending' : d })
+  }
+  const edit = () => {
+    if (decision === 'rejected') onChange({ decision: 'pending' })
+    setEditing((e) => !e)
+  }
+
   return (
-    <div className="card proposal" style={{ padding: 12, opacity: item.accepted ? 1 : 0.5 }}>
+    <div className={`card proposal ${decision}`}>
       <div className="spread" style={{ marginBottom: 6 }}>
         <span className="row-gap muted small" style={{ fontWeight: 600 }}>
           {icons[p.kind]} {t(`proposal.${p.kind}`)}
         </span>
         <div className="row-gap" style={{ gap: 4 }}>
           {p.kind !== 'delete_task' && (
-            <button className="btn ghost icon small" onClick={() => setEditing((e) => !e)} aria-label={t('common.edit')}>
+            <button
+              className={`btn ghost icon small${editing ? ' on' : ''}`}
+              onClick={edit}
+              aria-label={t('common.edit')}
+              aria-pressed={editing}
+            >
               <Pencil size={16} />
             </button>
           )}
           <button
-            className={`btn icon small${item.accepted ? '' : ' danger'}`}
-            onClick={() => onChange({ accepted: false })}
+            className="btn icon small reject"
+            onClick={() => decide('rejected')}
             aria-label={t('proposal.reject')}
-            style={!item.accepted ? { background: '#fbe4e1', borderColor: 'transparent' } : undefined}
+            aria-pressed={decision === 'rejected'}
           >
             <X size={16} />
           </button>
           <button
-            className={`btn icon small${item.accepted ? ' primary' : ''}`}
-            onClick={() => onChange({ accepted: true })}
+            className="btn icon small accept"
+            onClick={() => decide('accepted')}
             aria-label={t('proposal.accept')}
+            aria-pressed={decision === 'accepted'}
           >
             <Check size={16} />
           </button>
         </div>
       </div>
-      {editing && item.accepted ? <div className="form">{form}</div> : <div onClick={() => item.accepted && setEditing(true)}>{summary}</div>}
-      {item.accepted && (p.kind === 'create_company' || p.kind === 'create_person') && !!p.similar?.length && (
+      {editing ? (
+        <div className="form">
+          {form}
+          <button className="btn primary" onClick={() => decide('accepted')}>
+            <Check size={16} /> {t('common.done')}
+          </button>
+        </div>
+      ) : (
+        <div onClick={edit} className="proposal-body">{summary}</div>
+      )}
+      {decision !== 'pending' && !editing && (
+        <div className={`decision ${decision}`}>
+          {decision === 'accepted' ? <Check size={14} /> : <X size={14} />} {t(`proposal.${decision}`)}
+        </div>
+      )}
+      {decision !== 'rejected' && (p.kind === 'create_company' || p.kind === 'create_person') && !!p.similar?.length && (
         <div className="maybe">
           <span>{t('proposal.maybe')}</span>
           {p.similar.map((id) => (
