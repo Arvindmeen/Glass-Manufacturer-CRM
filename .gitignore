@@ -28,3 +28,6 @@ dist-ssr
 .env.*
 *.pem
 *.key
+
+# e2e test output
+tests/e2e/results-*.json

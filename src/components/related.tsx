@@ -30,7 +30,7 @@ export function TaskCard({ task, showLinks = true, onOpen }: { task: Task; showL
     >
       {task.status === 'done' ? (
         // Done is final on the board; reopen a task from its form (status) if needed.
-        <span className="advance is-done" aria-label={t('task.done')}>
+        <span className="advance is-done" role="img" aria-label={t('task.done')}>
           <Check size={16} />
         </span>
       ) : (

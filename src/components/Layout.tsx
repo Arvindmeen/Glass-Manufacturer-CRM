@@ -51,8 +51,9 @@ export function Layout() {
     localizeDemoData(lang)
     const switched = firstLang.current !== lang
     firstLang.current = lang
+    // Own entries go to the AI only when the user switches the language, never on page load.
+    if (!switched) return
     void translateUserData(lang).then((r) => {
-      if (!switched) return
       if (r === 'no-key') toast(t('settings.translateNeedsKey'))
       else if (r === 'failed') toast(t('settings.translateFailed'))
     })

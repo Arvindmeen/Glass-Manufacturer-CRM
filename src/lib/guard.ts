@@ -31,14 +31,21 @@ const BLOCKED: RegExp[] = [
   /\b(api[\s-]?key|openai[\s-]?key|secret key|access token|bearer|schlüssel)\b/i,
   /\bsk-[a-z0-9_-]{6,}/i,
   /\b(localstorage|sessionstorage|indexeddb|cookie|source ?code|quellcode|javascript|devtools|console\.|xss|sql injection|<script|eval\()/i,
-  /\b(hack|exploit|bypass|crack|phish|malware|ddos)\w*/i,
-  /\b(all|every|each|alle|sämtliche)\b.{0,30}\b(phone|number|e-?mail|address|contact|telefon|nummer|adresse|kontakt)\w*\b.{0,20}\b(list|export|dump|give|send|show|liste|exportier|schick|zeig)?/i,
+  /\b(hack|exploit|phish|malware|ddos)\w*/i,
+  // "bypass" and "crack" are everyday glazing words (a cracked pane); block them only next to security terms.
+  /\b(bypass|crack)\w*\b.{0,30}\b(security|guard|filter|login|password|passwort|key|schlüssel|auth|account|restriction|rules?|csp)\b/i,
   /\b(export|dump|download|extract)\b.{0,30}\b(database|all data|everything|contacts|crm|datenbank|alle daten|kontakte)/i,
 ]
 
+// Bulk requests for contact data ("all phone numbers", "alle Kontakte")…
+const BULK = /\b(all|every|each|alle|sämtliche)\b.{0,30}\b(phone|number|e-?mail|address|contact|telefon|nummer|adresse|kontakt)\w*/i
+// …unless scoped to one named company or person ("all contacts at Schreinerei Huber"); the output guard still caps answers at 3 records.
+const SCOPED = /\b(at|from|of|for|bei|von|der|des)\s+\p{Lu}[\p{L}&.-]+/u
+
 export function checkInput(text: string): GuardReason | null {
   if (text.length > MAX_INPUT) return 'too_long'
-  return BLOCKED.some((re) => re.test(text)) ? 'blocked' : null
+  if (BLOCKED.some((re) => re.test(text))) return 'blocked'
+  return BULK.test(text) && !SCOPED.test(text) ? 'blocked' : null
 }
 
 /* ---------- 2. prompt ---------- */

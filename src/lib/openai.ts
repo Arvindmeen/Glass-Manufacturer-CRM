@@ -14,6 +14,15 @@ function requireKey() {
   if (!vaultStatus().hasKey) throw new MissingKeyError()
 }
 
+/** An HTTP error from OpenAI; `status` lets the UI explain what to do. */
+export class AIHttpError extends Error {
+  status: number
+  constructor(status: number, message: string) {
+    super(message)
+    this.status = status
+  }
+}
+
 async function failure(res: Response) {
   let msg = `${res.status}`
   try {
@@ -23,7 +32,7 @@ async function failure(res: Response) {
   } catch {
     // keep status text
   }
-  return new Error(msg)
+  return new AIHttpError(res.status, msg)
 }
 
 function extFor(type: string) {

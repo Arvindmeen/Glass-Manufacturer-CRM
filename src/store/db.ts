@@ -2,6 +2,7 @@ import { useSyncExternalStore } from 'react'
 import type { Company, DB, Email, ID, KnowledgeEntry, Meeting, Person, Task } from '../types'
 import { todayISO } from '../lib/format'
 import { seed, seedTexts, type SeedText } from './seed'
+import { sanitizeDB } from './validate'
 import type { Lang } from './settings'
 
 const KEY = 'glasscrm:db:v1'
@@ -19,12 +20,8 @@ const IDB_STORE = 'db'
 const IDB_ID = 'state'
 
 function normalizeDB(data: Partial<DB> | null | undefined): DB {
-  const fresh = seed()
-  if (!data || typeof data !== 'object') return fresh
-  // Keep valid collections, fall back to seed for missing or malformed ones.
-  return Object.fromEntries(
-    (Object.keys(fresh) as (keyof DB)[]).map((k) => [k, Array.isArray(data[k]) ? data[k] : fresh[k]]),
-  ) as unknown as DB
+  // Every record is coerced to its type; missing or malformed collections fall back to the seed.
+  return sanitizeDB(data, seed())
 }
 
 function loadLocal(): { db: DB; rev: number } | null {

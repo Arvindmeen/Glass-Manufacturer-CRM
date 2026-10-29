@@ -9,7 +9,9 @@
     "build": "node scripts/check-secrets.mjs && tsc -b && vite build && node scripts/check-secrets.mjs",
     "lint": "oxlint",
     "preview": "vite preview",
-    "prepare": "git config core.hooksPath .githooks || true"
+    "prepare": "git config core.hooksPath .githooks || true",
+    "test": "vitest run",
+    "test:e2e": "node tests/e2e/security.cjs && node tests/e2e/features.cjs"
   },
   "dependencies": {
     "lucide-react": "^1.62.0",
@@ -22,8 +24,10 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
+    "axe-core": "^4.10.2",
     "oxlint": "^1.89.0",
     "typescript": "~7.0.2",
-    "vite": "^8.3.5"
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
   }
 }

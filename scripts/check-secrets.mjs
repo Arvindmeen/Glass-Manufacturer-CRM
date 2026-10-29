@@ -9,6 +9,9 @@ const PATTERNS = [
   /AIza[0-9A-Za-z_-]{35}/, // Google
   /OPENAI_API_KEY\s*[:=]\s*['"]?[^\s'"]{8,}/,
   /-----BEGIN [A-Z ]*PRIVATE KEY-----/,
+  /\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{36}\b|github_pat_[A-Za-z0-9_]{40,}/, // GitHub
+  /\bAKIA[0-9A-Z]{16}\b/, // AWS access key
+  /\bxox[abprs]-[A-Za-z0-9-]{10,}/, // Slack
 ]
 const SKIP = /\.(pdf|png|jpe?g|gif|ico|woff2?)$/i
 

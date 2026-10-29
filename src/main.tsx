@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { initVault } from './lib/keyVault'
 import { initDB } from './store/db'
 import { getSettings } from './store/settings'
@@ -13,8 +14,10 @@ document.documentElement.lang = getSettings().lang
 void Promise.all([initDB(), initVault()]).then(() =>
   createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    </ErrorBoundary>
   </StrictMode>,
 ))
