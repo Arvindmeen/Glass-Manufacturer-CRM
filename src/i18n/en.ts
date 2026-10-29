@@ -101,6 +101,7 @@ export const en = {
   'proposal.create_task': 'New task',
   'proposal.add_note': 'Add note',
   'proposal.create_knowledge': 'New knowledge entry',
+  'proposal.update_meeting': 'Update meeting',
   'proposal.update_task': 'Update task',
   'voice.assistant': 'Assistant',
   'voice.again': 'Speak again',

@@ -29,6 +29,7 @@ export type Proposal =
   | { kind: 'create_task'; title: string; due: string; status: TaskStatus; companyRef?: Ref; personRef?: Ref }
   | { kind: 'add_note'; targetRef: Ref; text: string }
   | { kind: 'create_knowledge'; section: string; title: string; product: string; summary: string; steps: KnowledgeStep[]; tags: string[] }
+  | { kind: 'update_meeting'; meetingId: string; companyRefs: Ref[]; personRefs: Ref[] }
   | { kind: 'update_task'; taskId: string; status?: TaskStatus; due?: string; title?: string; companyRef?: Ref; personRef?: Ref }
   | { kind: 'delete_task'; taskId: string }
   | { kind: 'update_company'; companyId: string; fields: CompanyFields }
@@ -493,8 +494,14 @@ export function resolve(db: DB, actions: RawAction[]): { items: ReviewItem[]; kn
   const fresh: Proposal[] = []
   for (const p of fixed) {
     const hit = alreadyThere(db, p)
-    if (hit) known.push(hit)
-    else if (!fresh.some((q) => sameProposal(q, p))) fresh.push(p)
+    if (!hit) {
+      if (!fresh.some((q) => sameProposal(q, p))) fresh.push(p)
+      continue
+    }
+    known.push(hit)
+    // Said again with more detail (e.g. now the person's name): add what the existing record lacks.
+    const more = enrich(db, p)
+    if (more && !fresh.some((q) => JSON.stringify(q) === JSON.stringify(more))) fresh.push(more)
   }
 
   return { items: fresh.map((proposal, i) => ({ key: `${i}-${proposal.kind}`, decision: 'pending' as const, proposal })), known }
@@ -567,6 +574,30 @@ function alreadyThere(db: DB, p: Proposal): Known | null {
   }
 }
 
+/** The details a repeated task or meeting brings that the existing one does not have yet. */
+function enrich(db: DB, p: Proposal): Proposal | null {
+  if (p.kind === 'create_task') {
+    const t = db.tasks.find((x) => sameText(x.title, p.title) && compatible(x.companyId, p.companyRef) && compatible(x.personId, p.personRef))
+    if (!t) return null
+    const personRef = !t.personId && p.personRef ? p.personRef : undefined
+    const companyRef = !t.companyId && p.companyRef ? p.companyRef : undefined
+    const due = !t.due && p.due ? p.due : undefined
+    return personRef || companyRef || due ? { kind: 'update_task', taskId: t.id, personRef, companyRef, due } : null
+  }
+  if (p.kind === 'create_meeting') {
+    const m = db.meetings.find(
+      (x) =>
+        x.date === p.date &&
+        (sameText(x.title, p.title) || (x.companyIds.some((id) => p.companyRefs.includes(id)) && sameText(x.summary, p.summary))),
+    )
+    if (!m) return null
+    const companyRefs = p.companyRefs.filter((r) => !m.companyIds.includes(r))
+    const personRefs = p.personRefs.filter((r) => !m.personIds.includes(r))
+    return companyRefs.length || personRefs.length ? { kind: 'update_meeting', meetingId: m.id, companyRefs, personRefs } : null
+  }
+  return null
+}
+
 function sameProposal(a: Proposal, b: Proposal) {
   if (a.kind !== b.kind) return false
   if (a.kind === 'create_task' && b.kind === 'create_task') return sameText(a.title, b.title) && compatible(a.companyRef, b.companyRef)
@@ -626,6 +657,15 @@ export function applyProposals(items: ReviewItem[], label: (kind: ProposalKind) 
         personId: resolveRef(p.personRef) ?? task.personId,
       })
       step(p.kind, next.title, '/tasks', [next.id])
+    } else if (p.kind === 'update_meeting') {
+      const m = db.meetings.find((x) => x.id === p.meetingId)
+      if (!m) continue
+      const next = saveMeeting({
+        ...m,
+        companyIds: [...new Set([...m.companyIds, ...resolveRefs(p.companyRefs)])],
+        personIds: [...new Set([...m.personIds, ...resolveRefs(p.personRefs)])],
+      })
+      step(p.kind, next.title, companyPath(next.companyIds[0]) ?? (next.personIds[0] ? `/people/${next.personIds[0]}` : undefined), [next.id])
     } else if (p.kind === 'delete_task') {
       const task = db.tasks.find((x) => x.id === p.taskId)
       if (!task) continue
@@ -679,6 +719,7 @@ export function replaceWithExisting(items: ReviewItem[], ref: Ref, existingId: s
         case 'create_person':
           return { ...i, proposal: { ...p, companyRefs: swapAll(p.companyRefs) } }
         case 'create_meeting':
+        case 'update_meeting':
           return { ...i, proposal: { ...p, companyRefs: swapAll(p.companyRefs), personRefs: swapAll(p.personRefs) } }
         case 'create_task':
         case 'update_task':

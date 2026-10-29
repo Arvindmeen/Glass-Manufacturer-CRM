@@ -59,6 +59,7 @@ const icons: Record<Proposal['kind'] | 'navigate' | 'language', ReactNode> = {
   create_meeting: <Calendar size={18} />,
   create_task: <ListChecks size={18} />,
   update_task: <ListChecks size={18} />,
+  update_meeting: <Calendar size={18} />,
   add_note: <StickyNote size={18} />,
   create_knowledge: <BookOpen size={18} />,
   delete_task: <Trash2 size={18} />,
@@ -459,7 +460,7 @@ function ProposalCard({
   const locale = useLocale()
   const [editing, setEditing] = useState(false)
   const refs = useRefs(items)
-  const { tasks, companies, people } = useDB()
+  const { tasks, companies, people, meetings } = useDB()
   const p = item.proposal
   const set = (patch: Partial<Proposal>) => onChange({ proposal: { ...p, ...patch } as Proposal })
 
@@ -746,6 +747,20 @@ function ProposalCard({
         </div>
       )
       break
+    case 'update_meeting': {
+      const meeting = meetings.find((x) => x.id === p.meetingId)
+      summary = (
+        <>
+          <div className="title">{meeting?.title}</div>
+          <div className="chips" style={{ marginTop: 6 }}>
+            {p.companyRefs.map(chip)}
+            {p.personRefs.map(chip)}
+          </div>
+        </>
+      )
+      form = summary
+      break
+    }
     case 'update_task': {
       const task = tasks.find((x) => x.id === p.taskId)
       summary = (
@@ -813,7 +828,7 @@ function ProposalCard({
           {icons[p.kind]} {t(`proposal.${p.kind}`)}
         </span>
         <div className="row-gap" style={{ gap: 4 }}>
-          {p.kind !== 'delete_task' && (
+          {p.kind !== 'delete_task' && p.kind !== 'update_meeting' && (
             <button
               className={`btn ghost icon small${editing ? ' on' : ''}`}
               onClick={edit}

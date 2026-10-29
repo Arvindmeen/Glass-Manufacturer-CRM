@@ -95,6 +95,7 @@ export const de: Record<TKey, string> = {
   'proposal.create_task': 'Neue Aufgabe',
   'proposal.add_note': 'Notiz ergänzen',
   'proposal.create_knowledge': 'Neuer Wissenseintrag',
+  'proposal.update_meeting': 'Termin ergänzen',
   'proposal.update_task': 'Aufgabe ändern',
   'voice.assistant': 'Assistent',
   'voice.again': 'Nochmals sprechen',
