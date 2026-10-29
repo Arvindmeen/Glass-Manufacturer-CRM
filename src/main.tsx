@@ -4,12 +4,13 @@ import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App'
 import { initVault } from './lib/keyVault'
+import { initDB } from './store/db'
 import { getSettings } from './store/settings'
 
 document.documentElement.lang = getSettings().lang
 
-// Decrypt the stored API key before the first render, so AI buttons know whether a key exists.
-void initVault().then(() =>
+// Load saved data and decrypt the stored API key before the first render.
+void Promise.all([initDB(), initVault()]).then(() =>
   createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
