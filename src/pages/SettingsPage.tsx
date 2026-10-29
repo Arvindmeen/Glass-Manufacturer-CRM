@@ -1,10 +1,13 @@
-import { useState, useSyncExternalStore } from 'react'
+import { useState, useSyncExternalStore, type CSSProperties } from 'react'
 import { Eye, EyeOff, Lock } from 'lucide-react'
 import { useT } from '../i18n'
-import { KEY_PATTERN, removeKey, saveKey, subscribeVault, vaultStatus } from '../lib/keyVault'
+import { KEY_PATTERN, removeKey, saveKey, setKeyMode, subscribeVault, vaultStatus, type KeyMode } from '../lib/keyVault'
 import { resetDemoData } from '../store/db'
 import { updateSettings, useSettings, type Lang } from '../store/settings'
 import { Field, PageHead, Section, toast } from '../components/ui'
+
+// Masked text instead of a password field where supported, so password managers never offer to save the key.
+const MASK = typeof CSS !== 'undefined' && CSS.supports('-webkit-text-security', 'disc')
 
 export function SettingsPage() {
   const t = useT()
@@ -15,11 +18,12 @@ export function SettingsPage() {
   const [show, setShow] = useState(false)
   const [error, setError] = useState('')
   const showInput = !vault.hasKey || editing
+  const [mode, setMode] = useState<KeyMode>(vault.mode)
 
   const submit = async () => {
     const value = draft.trim()
     if (!KEY_PATTERN.test(value)) return setError(t('settings.invalidKey'))
-    await saveKey(value)
+    await saveKey(value, mode)
     // Drop the plaintext from component state right away.
     setDraft('')
     setShow(false)
@@ -54,7 +58,8 @@ export function SettingsPage() {
             >
               <input
                 className="input"
-                type={show ? 'text' : 'password'}
+                type={show || MASK ? 'text' : 'password'}
+                style={MASK && !show ? ({ WebkitTextSecurity: 'disc' } as CSSProperties) : undefined}
                 name="openai-key"
                 autoComplete="off"
                 autoCorrect="off"
@@ -93,7 +98,7 @@ export function SettingsPage() {
           ) : (
             <div className="key-saved">
               <Lock size={16} />
-              <span className="grow mono">{vault.hint}</span>
+              <span className="grow mono key-dots" aria-label={t('settings.keySaved')}>••••••••••••</span>
               <button className="btn small" type="button" onClick={() => setEditing(true)}>
                 {t('settings.replaceKey')}
               </button>
@@ -109,7 +114,22 @@ export function SettingsPage() {
             </div>
           )}
           {error && <span className="error">{error}</span>}
-          <span className="muted small">{vault.persistent ? t('settings.keyStored') : t('settings.keySession')}</span>
+          <div className="segmented small">
+            {(['device', 'session'] as KeyMode[]).map((m) => (
+              <button
+                key={m}
+                type="button"
+                className={(vault.hasKey && !editing ? vault.mode : mode) === m ? 'active' : ''}
+                onClick={() => {
+                  setMode(m)
+                  if (vault.hasKey && !editing) void setKeyMode(m)
+                }}
+              >
+                {t(m === 'device' ? 'settings.keyDevice' : 'settings.keySessionOnly')}
+              </button>
+            ))}
+          </div>
+          <span className="muted small">{!vault.persistent ? t('settings.keySession') : (vault.hasKey && !editing ? vault.mode : mode) === 'session' ? t('settings.keySessionStored') : t('settings.keyStored')}</span>
         </Field>
       </div>
       <Section title="Demo">

@@ -180,5 +180,9 @@ export const de: Record<TKey, string> = {
   'settings.invalidKey': 'Kein OpenAI-Schlüssel (beginnt mit sk-).',
   'settings.replaceKey': 'Ersetzen',
   'settings.removeKeyConfirm': 'API-Schlüssel von diesem Gerät entfernen?',
+  'settings.keySaved': 'Schlüssel gespeichert',
+  'settings.keyDevice': 'Auf diesem Gerät merken',
+  'settings.keySessionOnly': 'Bis ich den Browser schliesse',
+  'settings.keySessionStored': 'Verschlüsselt, wird beim Schliessen des Browsers gelöscht. Nur an OpenAI gesendet.',
   'settings.keyStored': 'Verschlüsselt auf diesem Gerät. Nur an OpenAI gesendet.',
 }

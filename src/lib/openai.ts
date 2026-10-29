@@ -1,25 +1,17 @@
 import { checkOutput, GUARD_RULES, GuardError, hasForeignScript, languageRule, takeRateSlot } from './guard'
 import { getSettings } from '../store/settings'
 import { fullName, getDB } from '../store/db'
-import { keyForRequest } from './keyVault'
+import { MissingKeyError, vaultFetch, vaultStatus } from './keyVault'
 
-/** The key is only ever sent to this origin. */
+/** The key never leaves the vault: requests go through vaultFetch, which only talks to this origin. */
 const BASE = 'https://api.openai.com/v1'
-/** No cookies, no referrer, no caching of requests that carry the key. */
-const SAFE_FETCH: RequestInit = { credentials: 'omit', referrerPolicy: 'no-referrer', cache: 'no-store', mode: 'cors' }
 export const CHAT_MODEL = 'gpt-4o-mini'
 const TRANSCRIBE_MODELS = ['gpt-4o-mini-transcribe', 'whisper-1']
 
-export class MissingKeyError extends Error {
-  constructor() {
-    super('missing-key')
-  }
-}
+export { MissingKeyError }
 
-function key() {
-  const k = keyForRequest()
-  if (!k) throw new MissingKeyError()
-  return k
+function requireKey() {
+  if (!vaultStatus().hasKey) throw new MissingKeyError()
 }
 
 async function failure(res: Response) {
@@ -42,7 +34,7 @@ function extFor(type: string) {
 }
 
 export async function transcribe(audio: Blob): Promise<string> {
-  const k = key()
+  requireKey()
   takeRateSlot()
   let lastError: Error | undefined
   for (const model of TRANSCRIBE_MODELS) {
@@ -52,10 +44,8 @@ export async function transcribe(audio: Blob): Promise<string> {
     // Any spoken language is accepted (detected automatically); CRM names help spell names right.
     // The answer is always written in English or German (see languageRule).
     form.append('prompt', vocabulary())
-    const res = await fetch(`${BASE}/audio/transcriptions`, {
-      ...SAFE_FETCH,
+    const res = await vaultFetch(`${BASE}/audio/transcriptions`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${k}` },
       body: form,
     })
     if (res.ok) return ((await res.json()) as { text: string }).text.trim()
@@ -88,12 +78,11 @@ export async function chat(messages: ChatMessage[], opts: { json?: boolean; temp
 }
 
 async function complete(messages: ChatMessage[], opts: { json?: boolean; temperature?: number }) {
-  const k = key()
+  requireKey()
   takeRateSlot()
-  const res = await fetch(`${BASE}/chat/completions`, {
-    ...SAFE_FETCH,
+  const res = await vaultFetch(`${BASE}/chat/completions`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${k}`, 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: CHAT_MODEL,
       messages,

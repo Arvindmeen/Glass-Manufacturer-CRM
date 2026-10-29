@@ -200,6 +200,8 @@ h3 { font-size: 0.95rem; }
 }
 .segmented button.active { background: var(--primary); color: var(--primary-ink); font-weight: 600; box-shadow: 0 1px 3px rgb(15 92 110 / 30%); }
 .segmented button:not(.active):hover { color: var(--text); }
+.segmented.small button { font-size: 0.82rem; padding-block: 6px; }
+.key-dots { letter-spacing: 2px; }
 
 /* ---------- tasks ---------- */
 .board { display: grid; gap: 12px; }

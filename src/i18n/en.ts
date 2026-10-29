@@ -191,6 +191,10 @@ export const en = {
   'settings.invalidKey': 'This is not an OpenAI key (starts with sk-).',
   'settings.replaceKey': 'Replace',
   'settings.removeKeyConfirm': 'Remove the API key from this device?',
+  'settings.keySaved': 'Key saved',
+  'settings.keyDevice': 'Remember on this device',
+  'settings.keySessionOnly': 'Until I close the browser',
+  'settings.keySessionStored': 'Encrypted, deleted when you close the browser. Only sent to OpenAI.',
   'settings.keyStored': 'Encrypted on this device. Only sent to OpenAI.',
 }
 
