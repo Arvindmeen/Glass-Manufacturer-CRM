@@ -21,6 +21,24 @@ interface PlannedRoute {
   start?: Point
 }
 
+const PLAN = 'glasscrm:route'
+
+function loadPlan(companies: Company[]) {
+  try {
+    const v = JSON.parse(sessionStorage.getItem(PLAN) ?? 'null') as
+      | { ids: string[]; km: number; start?: Point; leg: number; trip: number }
+      | null
+    if (!v || !Array.isArray(v.ids)) return null
+    const stops = v.ids.map((id) => companies.find((c) => c.id === id)).filter((c): c is Company => !!c)
+    if (stops.length < 2) return null
+    const start = v.start && Number.isFinite(v.start.lat) && Number.isFinite(v.start.lng) ? { lat: v.start.lat, lng: v.start.lng } : undefined
+    const n = (x: unknown) => (Number.isInteger(x) && (x as number) >= 0 ? (x as number) : 0)
+    return { ids: stops.map((c) => c.id), route: { stops, km: Number(v.km) || 0, start }, leg: n(v.leg), trip: n(v.trip) }
+  } catch {
+    return null
+  }
+}
+
 export function CompaniesPage() {
   const t = useT()
   const navigate = useNavigate()
@@ -30,12 +48,24 @@ export function CompaniesPage() {
   const [q, setQ] = useSearchQuery()
   const recent = useRecent()
   const [creating, setCreating] = useState(false)
-  const [selected, setSelected] = useState<string[]>([])
-  const [route, setRoute] = useState<PlannedRoute | null>(null)
-  const [leg, setLeg] = useState(0)
-  const [trip, setTrip] = useState(0)
+  const [saved] = useState(() => loadPlan(companies))
+  const [selected, setSelected] = useState<string[]>(saved?.ids ?? [])
+  const [route, setRoute] = useState<PlannedRoute | null>(saved?.route ?? null)
+  const [leg, setLeg] = useState(saved?.leg ?? 0)
+  const [trip, setTrip] = useState(saved?.trip ?? 0)
   const [planning, setPlanning] = useState(false)
   const [focus, setFocus] = useState<Company | null>(null)
+
+  // Google Maps opens in this tab; keep the plan so "back" returns to it.
+  useEffect(() => {
+    try {
+      if (route)
+        sessionStorage.setItem(PLAN, JSON.stringify({ ids: route.stops.map((c) => c.id), km: route.km, start: route.start, leg, trip }))
+      else sessionStorage.removeItem(PLAN)
+    } catch {
+      // storage blocked: the plan lives in memory only
+    }
+  }, [route, leg, trip])
 
   const list = companies
     .filter((c) => matches(q, c.name, c.city, c.industry, c.zip))
@@ -177,9 +207,8 @@ export function CompaniesPage() {
                 <a
                   className="btn primary lg grow"
                   href={tripUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  // The browser opens a new tab (the Maps app on phones); the button then moves on to the next part.
+                  rel="noreferrer"
+                  // Opens Google Maps in this tab (the Maps app on phones); back returns to the plan at the next part.
                   onClick={() => setTrip((x) => Math.min(x + 1, trips.length - 1))}
                 >
                   <Navigation size={18} /> {t('company.openRoute')}
