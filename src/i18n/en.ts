@@ -86,6 +86,8 @@ export const en = {
   'voice.micDenied': 'Microphone access denied.',
   'voice.error': 'Something went wrong: {msg}',
   'voice.review': 'Review',
+  'voice.knownSome': '{n} already in the CRM. Only the new items below are added.',
+  'voice.knownAll': 'All of this is already in the CRM. Nothing new to add.',
   'voice.saveAccepted': 'Save {n}',
   'voice.nothing': 'Nothing to do found.',
   'voice.transcript': 'Transcript',

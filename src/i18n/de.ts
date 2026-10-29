@@ -81,6 +81,8 @@ export const de: Record<TKey, string> = {
   'voice.micDenied': 'Kein Zugriff auf das Mikrofon.',
   'voice.error': 'Fehler: {msg}',
   'voice.review': 'Prüfen',
+  'voice.knownSome': '{n} bereits im CRM. Nur die neuen Einträge unten werden ergänzt.',
+  'voice.knownAll': 'Alles ist bereits im CRM. Nichts Neues hinzuzufügen.',
   'voice.saveAccepted': '{n} speichern',
   'voice.nothing': 'Keine Aktionen erkannt.',
   'voice.transcript': 'Transkript',

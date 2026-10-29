@@ -55,8 +55,16 @@ export interface Navigation {
   extract?: boolean
 }
 
+/** Something the user asked for that is already in the CRM: shown, not created again. */
+export interface Known {
+  kind: ProposalKind
+  label: string
+  to: string
+}
+
 export interface AssistantResult {
   items: ReviewItem[]
+  known: Known[]
   answer: string
   navigate?: Navigation
   language?: 'de' | 'en'
@@ -212,6 +220,7 @@ On a company or person page, a spoken meeting note or task with no other company
 
 Rules:
 - Reuse existing records. If a company or person matches one below (even roughly, without "AG", a nickname or a typo), use its id and do NOT create it again.
+- Still list every task, meeting, note and knowledge entry the user mentions, even if it seems to exist already: the app detects duplicates itself and tells the user.
 - Only create a company/person when it clearly does not exist. Give new records a ref like "new:c1" / "new:p1" and use it to link other actions.
 - A meeting is something that already happened ("I just met…", "we discussed…"). Summarise what was discussed, keep all facts, products, quantities and wishes.
 - A task is something to do later ("remind me", "send offer", "call back"). Short imperative title. Resolve relative dates to YYYY-MM-DD, in the future.
@@ -271,7 +280,7 @@ export async function interpret(text: string, page = 'unknown'): Promise<Assista
     text,
   )
   const language = str(res.language) === 'de' || str(res.language) === 'en' ? (str(res.language) as 'de' | 'en') : undefined
-  return { items: resolve(db, Array.isArray(res.actions) ? res.actions : []), answer: str(res.answer), navigate: resolveNav(db, res.navigate), language }
+  return { ...resolve(db, Array.isArray(res.actions) ? res.actions : []), answer: str(res.answer), navigate: resolveNav(db, res.navigate), language }
 }
 
 function resolveNav(db: DB, nav?: Record<string, unknown> | null): Navigation | undefined {
@@ -331,8 +340,9 @@ export function navLabel(nav: Navigation, pageName: (p: PageKey) => string): str
 }
 
 /** Normalise AI output and guard against duplicates the model missed. */
-export function resolve(db: DB, actions: RawAction[]): ReviewItem[] {
+export function resolve(db: DB, actions: RawAction[]): { items: ReviewItem[]; known: Known[] } {
   const remap = new Map<string, string>()
+  const known: Known[] = []
   const valid = (ref: string) =>
     isNew(ref) || db.companies.some((c) => c.id === ref) || db.people.some((p) => p.id === ref)
   const fix = (ref: string) => remap.get(ref) ?? ref
@@ -345,6 +355,7 @@ export function resolve(db: DB, actions: RawAction[]): ReviewItem[] {
         const existing = findCompany(db, str(a.name))
         if (existing) {
           remap.set(ref, existing.id)
+          known.push({ kind: 'create_company', label: existing.name, to: `/companies/${existing.id}` })
           if (str(a.notes)) proposals.push({ kind: 'add_note', targetRef: existing.id, text: str(a.notes) })
           break
         }
@@ -361,6 +372,7 @@ export function resolve(db: DB, actions: RawAction[]): ReviewItem[] {
         const existing = findPerson(db, str(a.firstName), str(a.lastName))
         if (existing) {
           remap.set(ref, existing.id)
+          known.push({ kind: 'create_person', label: fullName(existing), to: `/people/${existing.id}` })
           if (str(a.notes)) proposals.push({ kind: 'add_note', targetRef: existing.id, text: str(a.notes) })
           break
         }
@@ -477,7 +489,92 @@ export function resolve(db: DB, actions: RawAction[]): ReviewItem[] {
     }
   }
 
-  return fixed.map((proposal, i) => ({ key: `${i}-${proposal.kind}`, decision: 'pending' as const, proposal }))
+  // Drop what is already in the CRM (said twice, or partly done before) and repeats within this batch.
+  const fresh: Proposal[] = []
+  for (const p of fixed) {
+    const hit = alreadyThere(db, p)
+    if (hit) known.push(hit)
+    else if (!fresh.some((q) => sameProposal(q, p))) fresh.push(p)
+  }
+
+  return { items: fresh.map((proposal, i) => ({ key: `${i}-${proposal.kind}`, decision: 'pending' as const, proposal })), known }
+}
+
+/* ---------- duplicates ---------- */
+
+const FILLER = new Set('the a an and for with to of at in on about re bei mit fur und der die das den dem des zum zur von an auf ein eine einen'.split(' '))
+const words = (s: string) => normalize(s).split(/[^a-z0-9]+/).filter((w) => w.length > 1 && !FILLER.has(w))
+
+/** Same wording, a typo, or (almost) the same words in another order: "Send quote to Huber" = "Huber: send quote". */
+export function sameText(a: string, b: string) {
+  const ka = words(a).join(' ')
+  const kb = words(b).join(' ')
+  if (!ka || !kb) return false
+  if (ka === kb || isClose(ka, kb)) return true
+  const A = new Set(ka.split(' '))
+  const B = [...new Set(kb.split(' '))]
+  const shared = [...A].filter((w) => B.some((x) => x === w || isClose(x, w))).length
+  return shared / Math.max(A.size, B.length) >= 0.75
+}
+
+/** Both point at the same record, or one of them names none. */
+const compatible = (a?: string, b?: string) => !a || !b || a === b
+
+function alreadyThere(db: DB, p: Proposal): Known | null {
+  switch (p.kind) {
+    case 'create_task': {
+      const t = db.tasks.find((x) => sameText(x.title, p.title) && compatible(x.companyId, p.companyRef) && compatible(x.personId, p.personRef))
+      return t ? { kind: p.kind, label: t.title, to: '/tasks' } : null
+    }
+    case 'create_meeting': {
+      const m = db.meetings.find(
+        (x) =>
+          x.date === p.date &&
+          (sameText(x.title, p.title) || (x.companyIds.some((id) => p.companyRefs.includes(id)) && sameText(x.summary, p.summary))),
+      )
+      return m ? { kind: p.kind, label: m.title, to: m.companyIds[0] ? `/companies/${m.companyIds[0]}` : '/companies' } : null
+    }
+    case 'create_knowledge': {
+      const k = db.knowledge.find((x) => sameText(x.title, p.title))
+      return k ? { kind: p.kind, label: k.title, to: `/knowledge/${k.id}` } : null
+    }
+    case 'add_note': {
+      const c = db.companies.find((x) => x.id === p.targetRef)
+      const person = db.people.find((x) => x.id === p.targetRef)
+      const notes = (c ?? person)?.notes ?? ''
+      const there = normalize(notes).includes(normalize(p.text)) || notes.split('\n').some((line) => sameText(line, p.text))
+      if (!there) return null
+      return c ? { kind: p.kind, label: c.name, to: `/companies/${c.id}` } : { kind: p.kind, label: fullName(person!), to: `/people/${person!.id}` }
+    }
+    case 'link_person': {
+      const person = db.people.find((x) => x.id === p.personRef)
+      const c = db.companies.find((x) => x.id === p.companyRef)
+      return person && c && person.companyIds.includes(c.id) ? { kind: p.kind, label: `${fullName(person)} → ${c.name}`, to: `/companies/${c.id}` } : null
+    }
+    case 'update_task': {
+      const t = db.tasks.find((x) => x.id === p.taskId)
+      const unchanged =
+        t &&
+        (!p.status || p.status === t.status) &&
+        (!p.due || p.due === t.due) &&
+        (!p.title || p.title === t.title) &&
+        (!p.companyRef || p.companyRef === t.companyId) &&
+        (!p.personRef || p.personRef === t.personId)
+      return unchanged ? { kind: p.kind, label: t.title, to: '/tasks' } : null
+    }
+    default:
+      return null
+  }
+}
+
+function sameProposal(a: Proposal, b: Proposal) {
+  if (a.kind !== b.kind) return false
+  if (a.kind === 'create_task' && b.kind === 'create_task') return sameText(a.title, b.title) && compatible(a.companyRef, b.companyRef)
+  if (a.kind === 'create_meeting' && b.kind === 'create_meeting') return a.date === b.date && sameText(a.title, b.title)
+  if (a.kind === 'create_knowledge' && b.kind === 'create_knowledge') return sameText(a.title, b.title)
+  if (a.kind === 'add_note' && b.kind === 'add_note') return a.targetRef === b.targetRef && sameText(a.text, b.text)
+  if (a.kind === 'link_person' && b.kind === 'link_person') return a.personRef === b.personRef && a.companyRef === b.companyRef
+  return false
 }
 
 /* ---------- saving ---------- */

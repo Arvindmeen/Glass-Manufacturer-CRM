@@ -178,7 +178,8 @@ export function VoiceCommand({ onClose }: { onClose: () => void }) {
       const r = await interpret(text, page)
       setResult(r)
       setItems(withPhotos(r.items))
-      if (r.items.length) setPhase('review')
+      // Also review when everything was already there, so the user sees it instead of a silent no-op.
+      if (r.items.length || r.known.length) setPhase('review')
       // Nothing to change: just answer, switch language and/or open the page.
       else finish(commandSteps(r))
     } catch (e) {
@@ -314,14 +315,39 @@ export function VoiceCommand({ onClose }: { onClose: () => void }) {
               <CheckCheck size={18} /> {t('proposal.acceptAll')}
             </button>
           )}
-          <button className="btn primary" disabled={acceptedCount === 0} onClick={save}>
-            <Check size={18} /> {t('voice.saveAccepted', { n: acceptedCount })}
-          </button>
+          {items.length > 0 ? (
+            <button className="btn primary" disabled={acceptedCount === 0} onClick={save}>
+              <Check size={18} /> {t('voice.saveAccepted', { n: acceptedCount })}
+            </button>
+          ) : (
+            <button className="btn primary" onClick={() => (result?.navigate || result?.language ? finish(commandSteps(result)) : close())}>
+              {t('common.done')}
+            </button>
+          )}
         </>
       }
     >
       <p className="muted small transcript">“{transcript}”</p>
       {answer}
+      {!!result?.known.length && (
+        <div className="known">
+          <p className="known-head">
+            <CheckCheck size={18} />
+            {items.length ? t('voice.knownSome', { n: result.known.length }) : t('voice.knownAll')}
+          </p>
+          <ul>
+            {result.known.map((k, i) => (
+              <li key={i}>
+                <Link to={k.to} onClick={close}>
+                  {icons[k.kind]}
+                  <span className="grow">{k.label}</span>
+                  <span className="chip ok">{t('proposal.existing')}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <div className="stack">
         {items.map((item) => (
           <ProposalCard
