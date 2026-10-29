@@ -61,7 +61,7 @@ export const embedArea = (points: Point[]) => {
 /** Where Google should route to: the exact pin when the record has one, otherwise its postal address. */
 export const routePoint = (c: Company) => (c.lat != null && c.lng != null ? `${c.lat},${c.lng}` : addressOf(c))
 
-/** Route embed for one leg (a few points; long "to:" chains fail in the keyless embed). */
+/** Route embed for one drive. Exact coordinates need no geocoding, so the drive always draws. */
 export const embedRoute = (points: string[]) => {
   const [saddr, ...rest] = points
   return embed({ saddr, daddr: rest.join(' to:') })

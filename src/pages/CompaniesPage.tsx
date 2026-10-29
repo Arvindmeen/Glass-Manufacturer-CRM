@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Check, ChevronRight, Loader2, LocateFixed, Navigation, Plus, Route } from 'lucide-react'
 import { useT } from '../i18n'
 import { matches } from '../lib/format'
-import { addressOf, embedArea, embedPlace, embedRoute, locate, routePoint } from '../lib/geo'
+import { embedArea, embedPlace, embedRoute, locate, routePoint } from '../lib/geo'
 import { currentPosition, googleMapsRoute, haversine, planRoute, PREVIEW_POINTS, splitLegs, TRIP_POINTS, type Point } from '../lib/route'
 import { useDB } from '../store/db'
 import type { Company } from '../types'
@@ -79,8 +79,8 @@ export function CompaniesPage() {
   // Route points in driving order (the rep's position first, as stop 0).
   const points = route
     ? [
-        ...(route.start ? [{ n: 0, map: `${route.start.lat},${route.start.lng}`, nav: `${route.start.lat},${route.start.lng}` }] : []),
-        ...route.stops.map((c, i) => ({ n: i + 1, map: addressOf(c), nav: routePoint(c) })),
+        ...(route.start ? [{ n: 0, point: `${route.start.lat},${route.start.lng}` }] : []),
+        ...route.stops.map((c, i) => ({ n: i + 1, point: routePoint(c) })),
       ]
     : []
   // The map box shows one drive at a time; Google Maps gets the whole plan (or parts of 10 points).
@@ -89,9 +89,10 @@ export function CompaniesPage() {
   const inLeg = (n: number) => legs.length < 2 || (n >= active[0].n && n <= active[active.length - 1].n)
   const trips = splitLegs(points, TRIP_POINTS)
   const tripNow = Math.min(trip, trips.length - 1)
+  const tripUrl = googleMapsRoute((trips[tripNow] ?? []).map((p) => p.point))
 
   const mapSrc = route
-    ? embedRoute(active.map((p) => p.map))
+    ? embedRoute(active.map((p) => p.point))
     : focus
       ? embedPlace(focus)
       : embedArea(list.map(locate).filter((p): p is Point => !!p))
@@ -175,11 +176,17 @@ export function CompaniesPage() {
                 </button>
                 <a
                   className="btn primary lg grow"
-                  href={googleMapsRoute((trips[tripNow] ?? []).map((p) => p.nav))}
+                  href={tripUrl}
                   target="_blank"
                   rel="noreferrer"
-                  // After opening one part, the button moves on to the next.
-                  onClick={() => setTrip((x) => Math.min(x + 1, trips.length - 1))}
+                  onClick={(e) => {
+                    // Always a new tab (or the Maps app on phones); the button then moves on to the next part.
+                    e.preventDefault()
+                    const tab = window.open(tripUrl, '_blank')
+                    if (tab) tab.opener = null
+                    else window.location.assign(tripUrl)
+                    setTrip((x) => Math.min(x + 1, trips.length - 1))
+                  }}
                 >
                   <Navigation size={18} /> {t('company.openRoute')}
                   {trips.length > 1 && ` ${tripNow + 1}/${trips.length}`}
