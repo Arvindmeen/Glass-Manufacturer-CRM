@@ -59,6 +59,7 @@ export const de: Record<TKey, string> = {
   'company.list': 'Liste',
   'company.planRoute': 'Route planen',
   'company.selected': '{n} ausgewählt',
+  'company.stops': 'Stopps {a}–{b}',
   'company.openRoute': 'In Google Maps öffnen',
   'company.linkPerson': 'Person verknüpfen',
   'person.linkCompany': 'Firma verknüpfen',

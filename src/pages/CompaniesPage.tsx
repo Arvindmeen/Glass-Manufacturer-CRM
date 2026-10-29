@@ -3,8 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Check, ChevronRight, Loader2, Navigation, Plus, Route } from 'lucide-react'
 import { useT } from '../i18n'
 import { matches } from '../lib/format'
-import { addressOf, embedArea, embedPlace, embedRoute, locate } from '../lib/geo'
-import { currentPosition, googleMapsRoute, haversine, planRoute, type Point } from '../lib/route'
+import { embedArea, embedPlace, embedRoute, locate, routePoint } from '../lib/geo'
+import { currentPosition, googleMapsRoute, haversine, planRoute, splitLegs, type Point } from '../lib/route'
 import { useDB } from '../store/db'
 import type { Company } from '../types'
 import { CompanyForm } from '../components/forms'
@@ -32,6 +32,7 @@ export function CompaniesPage() {
   const [creating, setCreating] = useState(false)
   const [selected, setSelected] = useState<string[]>([])
   const [route, setRoute] = useState<PlannedRoute | null>(null)
+  const [leg, setLeg] = useState(0)
   const [planning, setPlanning] = useState(false)
   const [focus, setFocus] = useState<Company | null>(null)
 
@@ -57,6 +58,7 @@ export function CompaniesPage() {
     const r = planRoute(points, start)
     // Stops without coordinates cannot be ordered; they go last.
     setRoute({ stops: [...r.order.map((i) => stops[i]), ...unlocated], km: r.km, start })
+    setLeg(0)
     setPlanning(false)
   }
 
@@ -72,8 +74,18 @@ export function CompaniesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routeParam])
 
+  // Route points in driving order (the rep's position first, as stop 0), split into legs Google Maps can take.
+  const legs = route
+    ? splitLegs([
+        ...(route.start ? [{ n: 0, point: `${route.start.lat},${route.start.lng}` }] : []),
+        ...route.stops.map((c, i) => ({ n: i + 1, point: routePoint(c) })),
+      ])
+    : []
+  const active = legs[Math.min(leg, legs.length - 1)] ?? []
+  const inLeg = (n: number) => legs.length < 2 || (n >= active[0].n && n <= active[active.length - 1].n)
+
   const mapSrc = route
-    ? embedRoute(route.stops.map(addressOf), route.start)
+    ? embedRoute(active.map((p) => p.point))
     : focus
       ? embedPlace(focus)
       : embedArea(list.map(locate).filter((p): p is Point => !!p))
@@ -130,9 +142,18 @@ export function CompaniesPage() {
 
           {route ? (
             <div className="stack">
+              {legs.length > 1 && (
+                <div className="chip-scroll">
+                  {legs.map((l, i) => (
+                    <button key={i} type="button" className={`chip leg${i === leg ? ' primary' : ''}`} onClick={() => setLeg(i)}>
+                      {t('company.stops', { a: Math.max(l[0].n, 1), b: l[l.length - 1].n })}
+                    </button>
+                  ))}
+                </div>
+              )}
               <div className="list">
                 {route.stops.map((c, i) => (
-                  <div key={c.id} className="list-item" onClick={() => navigate(`/companies/${c.id}`)}>
+                  <div key={c.id} className={`list-item${inLeg(i + 1) ? '' : ' off-leg'}`} onClick={() => navigate(`/companies/${c.id}`)}>
                     <div className="avatar" style={{ background: 'var(--accent)', color: '#fff' }}>{i + 1}</div>
                     <div className="grow">
                       <div className="title">{c.name}</div>
@@ -148,11 +169,14 @@ export function CompaniesPage() {
                 </button>
                 <a
                   className="btn primary lg grow"
-                  href={googleMapsRoute(route.stops.map(addressOf), !!route.start)}
+                  href={googleMapsRoute(active.map((p) => p.point))}
                   target="_blank"
                   rel="noreferrer"
+                  // After opening one leg, the button moves on to the next.
+                  onClick={() => setLeg((l) => Math.min(l + 1, legs.length - 1))}
                 >
                   <Navigation size={18} /> {t('company.openRoute')}
+                  {legs.length > 1 && ` ${Math.min(leg, legs.length - 1) + 1}/${legs.length}`}
                 </a>
               </div>
             </div>

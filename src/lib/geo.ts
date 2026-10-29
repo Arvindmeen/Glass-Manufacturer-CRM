@@ -58,8 +58,11 @@ export const embedArea = (points: Point[]) => {
   return embed({ ll: `${lat.toFixed(4)},${lng.toFixed(4)}`, z: '9', t: 'm' })
 }
 
-export const embedRoute = (stops: string[], start?: Point) => {
-  const list = [...stops]
-  const saddr = start ? `${start.lat},${start.lng}` : list.shift()!
-  return embed({ saddr, daddr: list.join(' to:') })
+/** Where Google should route to: the exact pin when the record has one, otherwise its postal address. */
+export const routePoint = (c: Company) => (c.lat != null && c.lng != null ? `${c.lat},${c.lng}` : addressOf(c))
+
+/** Route embed for one leg (a few points; long "to:" chains fail in the keyless embed). */
+export const embedRoute = (points: string[]) => {
+  const [saddr, ...rest] = points
+  return embed({ saddr, daddr: rest.join(' to:') })
 }
