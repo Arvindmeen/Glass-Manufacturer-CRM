@@ -30,18 +30,18 @@ Guiding rule for every screen: show only what a sales rep on the road needs. No 
 - Empty "simap Bot" tab.
 
 ## Phase 5 — Polish and hand-in
-- Mobile pass, DE/EN completeness, empty/error states.
-- README: run, what was built, what was left out, route ordering.
-- Architecture plan (Part 2) in Markdown with Mermaid diagrams.
-- Vercel deploy config; screen recording (done by you).
+- Mobile pass, DE/EN completeness, empty/error states. ✅
+- README: run, what was built, what was left out, route ordering. ✅ [README.md](../README.md)
+- Architecture plan (Part 2) in Markdown with Mermaid diagrams. ✅ [ARCHITECTURE.md](./ARCHITECTURE.md)
+- Vercel deploy config ✅; screen recording (done by you).
 
 ## Decisions
 - Default language: English (German switchable in the UI).
 - Map: Google Maps only (keyless embed + directions link), no other map service.
 - OpenAI key: entered by the user in Settings, never in the repo or the build.
   - Encrypted at rest with AES-256-GCM; the AES key is a non-extractable WebCrypto key in IndexedDB (raw bytes can never be read or exported).
-  - Plaintext only in memory inside `src/lib/keyVault.ts`, sent only to `api.openai.com` (no cookies, no referrer, no cache); OpenAI error messages are masked.
-  - UI shows only `sk-…last4` after saving; replace / remove.
+  - In memory the key stays encrypted too and is decrypted only inside `vaultFetch` (`src/lib/keyVault.ts`), sent only to `api.openai.com` (no cookies, no referrer, no cache); OpenAI error messages are masked.
+  - UI shows only dots after saving (no part of the key); replace / remove; option to keep it only until the browser closes.
   - CSP + security headers (vercel.json, also on `npm run preview`) block foreign scripts and allow the key to reach OpenAI only.
   - `scripts/check-secrets.mjs` runs before every build and commit and fails on anything key-shaped.
 - AI guard rails (`src/lib/guard.ts`), applied to every OpenAI call:
