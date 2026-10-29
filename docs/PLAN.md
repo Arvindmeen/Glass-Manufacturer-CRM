@@ -24,7 +24,7 @@ Guiding rule for every screen: show only what a sales rep on the road needs. No 
 
 ## Phase 4 — Remaining modules ✅
 - Knowledge base: sections, product search, step-by-step installation tutorials, voice-to-entry with review, AI chat using CRM + knowledge as context.
-- Email inbox mockup: quote requests → extract (customer, products, quantities, dimensions) → confirm → "Transfer to ERP" (simulated).
+- Email inbox mockup: quote requests → extract (customer, products, quantities, dimensions) → confirm → "Transfer to Safir" (simulated; ERP name confirmed by the client).
 - Companies map + route planning: select companies → order stops (nearest neighbour + 2-opt) → open in Google Maps.
 - Lead search mockup with static results.
 - Empty "simap Bot" tab.
@@ -53,4 +53,4 @@ Guiding rule for every screen: show only what a sales rep on the road needs. No 
   - Known limit of a backend-free prototype: code running on this origin while the app is open can use the key. Production moves it to the server (Part 2).
 
 ## Open questions for the client
-- ERP name for the "Transfer to …" button.
+- ~~ERP name for the "Transfer to …" button~~ → **Safir** (confirmed).

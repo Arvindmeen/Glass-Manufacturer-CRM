@@ -42,13 +42,13 @@ Legend: ☐ = check this result.
 ---
 
 ## Script 3 — Office sales (desktop, English)
-**Situation:** The office handles incoming quote requests, hands them to the ERP and looks for new customers.
+**Situation:** The office handles incoming quote requests, hands them to the ERP (Safir) and looks for new customers.
 
 | # | Do | Expected |
 |---|---|---|
 | 1 | Open **Inbox**. | ☐ Two-pane view; unread mails bold; quote requests have an orange "Quote request" chip; unread count in sidebar. |
 | 2 | Open **Peter Zbinden — Anfrage Offerte Duschtrennwände** → **Extract request**. | ☐ Customer *Sanitär Zbinden AG*, contact, 3 items with qty and dimensions (stabiliser bars: dimensions **Missing**, not invented). |
-| 3 | Change a quantity, delete one line, **Add item**, then **Confirm** → **Transfer to ERP**. | ☐ Spinner, then green "Transferred to ERP · date/time"; list chip turns green. Customer name links to the company. |
+| 3 | Change a quantity, delete one line, **Add item**, then **Confirm** → **Transfer to Safir**. | ☐ Spinner, then green "Transferred to Safir · date/time"; list chip turns green. Customer name links to the company. |
 | 4 | Press **Speak** (sidebar) and type: *"Extract the quote from Hotel Bellevue."* | ☐ Opens that email and starts extraction automatically. |
 | 5 | **Lead search**: Region **Bern**, type **Plumbing / bathrooms**, Min. employees **10+** → **Search**. | ☐ "Searching commercial register…" → "Checking websites…" → results with website ✓, fit %. ☐ **Add** on one → "Added"; it appears under Companies. |
 | 6 | **Tasks** (desktop): drag a card from Planned to In progress. Open a task, set **Due** with the calendar (month arrows, Today), change **Company** with the searchable dropdown (type "ker"). | ☐ Card moves column. ☐ Calendar never gets cut off; dropdown filters as you type; selected item has ✓. |
@@ -96,7 +96,7 @@ Legend: ☐ = check this result.
 | Tasks: board, status, drag & drop, voice create/update | 1, 2, 3 |
 | Knowledge: search, tutorials, photos, voice entry, chips | 4 |
 | Chat assistant with CRM + knowledge context | 4, 5 |
-| Inbox: extraction, missing values, ERP transfer | 3 |
+| Inbox: extraction, missing values, Safir transfer | 3 |
 | Map, route planning, Google Maps | 1 |
 | Lead search mockup, simap Bot | 3, 5 |
 | DE / EN, browser language, other spoken languages | 2, 5 |
