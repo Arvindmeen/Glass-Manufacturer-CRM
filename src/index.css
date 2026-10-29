@@ -272,10 +272,14 @@ h3 { font-size: 0.95rem; }
 
 @media (max-width: 699px) {
   .sheet-top { touch-action: none; user-select: none; }
-  .sheet.full { max-height: 100dvh; height: auto; }
-  /* A chat fills the whole screen when expanded. */
-  .sheet.full:has(.chat-input) { height: 100dvh; border-radius: 0; }
-  .sheet.full:has(.chat-input) .sheet-top { padding-top: calc(14px + env(safe-area-inset-top)); }
+  /* Expanded, every sheet fills the screen; its body scrolls, its buttons stay at the bottom. */
+  .sheet.full { height: 100dvh; max-height: 100dvh; border-radius: 0; }
+  .sheet.full .sheet-body { flex: 1 1 auto; }
+  .sheet.full .sheet-top { padding-top: calc(14px + env(safe-area-inset-top)); }
+  /* Snaps settle with a slight spring, like native sheets. */
+  .sheet { transition: transform 0.32s cubic-bezier(0.3, 1.25, 0.5, 1), height 0.34s cubic-bezier(0.3, 1.15, 0.5, 1),
+    max-height 0.34s cubic-bezier(0.3, 1.15, 0.5, 1), border-radius 0.2s; }
+  .sheet.closing { transition: transform 0.24s cubic-bezier(0.4, 0, 1, 1); }
   .sheet.closing { transform: translateY(100%) !important; }
 }
 @media (min-width: 700px) {

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ChevronLeft, Search, X } from 'lucide-react'
+import { haptic } from '../lib/haptic'
 
 /**
  * Page title row. `fabs` are the page's main actions: inline in the header on desktop,
@@ -61,6 +62,7 @@ export function useClosing(onClose: () => void) {
 /**
  * Modal sheet. On phones it is a bottom sheet: it opens at its natural size, the grip
  * (or header) can be dragged up to full screen, back down, or further down to close.
+ * Snapping to full screen, back, or closing gives a light haptic tick.
  */
 export function Sheet({
   title,
@@ -86,7 +88,7 @@ export function Sheet({
   const [full, setFull] = useState(false)
   const el = useRef<HTMLDivElement>(null)
   const base = useRef(0)
-  const drag = useRef<{ y: number; h: number; t: number; lastY: number; lastT: number; onGrip: boolean } | null>(null)
+  const drag = useRef<{ y: number; h: number; t: number; lastY: number; lastT: number; onGrip: boolean; atTop: boolean } | null>(null)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
@@ -98,15 +100,8 @@ export function Sheet({
     }
   }, [onClose])
 
-  /** How tall the sheet would be with all content visible. */
-  const naturalHeight = () => {
-    const s = el.current
-    if (!s) return 0
-    const part = (sel: string) => (s.querySelector(sel) as HTMLElement | null)
-    return (part('.sheet-top')?.offsetHeight ?? 0) + (part('.sheet-body')?.scrollHeight ?? 0) + (part('.sheet-foot')?.offsetHeight ?? 0)
-  }
-  /** Forms grow only as far as their content; sheets with a fixed height (chat) can fill the screen. */
-  const maxHeight = () => (height ? window.innerHeight : Math.min(window.innerHeight, naturalHeight()))
+  /** Every sheet (chat and forms) can be pulled up to fill the screen. */
+  const maxHeight = () => window.innerHeight
 
   const restingHeight = () => {
     if (!base.current && el.current) base.current = el.current.offsetHeight
@@ -125,6 +120,7 @@ export function Sheet({
       lastT: now,
       // Pointer capture retargets later events, so remember where the press started.
       onGrip: !!(e.target as HTMLElement).closest('.sheet-grip'),
+      atTop: false,
     }
     el.current.style.transition = 'none'
     ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
@@ -136,8 +132,12 @@ export function Sheet({
     if (!d || !s) return
     const target = d.h - (e.clientY - d.y)
     if (target >= base.current) {
-      s.style.height = `${Math.min(target, Math.max(maxHeight(), base.current))}px`
-      s.style.transform = ''
+      const max = Math.max(maxHeight(), base.current)
+      // Rubber band past the top; tick once when the top edge is reached.
+      s.style.height = `${target > max ? max : target}px`
+      s.style.transform = target > max ? `translateY(${-Math.min(16, (target - max) * 0.15)}px)` : ''
+      if (target >= max && !d.atTop) haptic()
+      d.atTop = target >= max
     } else {
       s.style.height = `${base.current}px`
       s.style.transform = `translateY(${base.current - target}px)`
@@ -166,12 +166,14 @@ export function Sheet({
       ? velocity > 1.2 && target < base.current * 0.5
       : target < base.current * 0.75 || (velocity > 0.6 && target < base.current)
     if (shouldClose) {
+      haptic()
       onClose() // the closing class slides it out from where it is
       return
     }
     s.style.transform = ''
     const room = maxHeight() - base.current
     const goFull = room > 8 && (velocity < -0.5 || target > base.current + room * 0.35)
+    if (goFull !== full && !d.atTop) haptic()
     setFull(goFull)
     s.style.height = goFull ? '' : `${base.current}px`
   }
@@ -180,6 +182,7 @@ export function Sheet({
     restingHeight()
     if (!full && maxHeight() - base.current <= 8) return // already shows everything
     if (el.current) el.current.style.height = full ? `${base.current}px` : ''
+    haptic()
     setFull((f) => !f)
   }
 
