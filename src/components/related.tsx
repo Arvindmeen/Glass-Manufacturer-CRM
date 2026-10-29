@@ -10,7 +10,7 @@ import { MeetingForm } from './MeetingForm'
 import { flash, useRecent } from '../lib/recent'
 import { Section } from './ui'
 
-const nextStatus: Record<TaskStatus, TaskStatus> = { planned: 'in_progress', in_progress: 'done', done: 'planned' }
+const nextStatus: Record<Exclude<TaskStatus, 'done'>, TaskStatus> = { planned: 'in_progress', in_progress: 'done' }
 
 export function TaskCard({ task, showLinks = true, onOpen }: { task: Task; showLinks?: boolean; onOpen: () => void }) {
   const t = useT()
@@ -28,17 +28,24 @@ export function TaskCard({ task, showLinks = true, onOpen }: { task: Task; showL
       draggable
       onDragStart={(e) => e.dataTransfer.setData('text/task', task.id)}
     >
-      <button
-        className="advance"
-        title={t(`task.${nextStatus[task.status]}`)}
-        aria-label={t(`task.${nextStatus[task.status]}`)}
-        onClick={(e) => {
-          e.stopPropagation()
-          saveTask({ ...task, status: nextStatus[task.status] })
-        }}
-      >
-        {task.status === 'done' ? <Check size={16} /> : task.status === 'in_progress' ? <ChevronRight size={16} /> : null}
-      </button>
+      {task.status === 'done' ? (
+        // Done is final on the board; reopen a task from its form (status) if needed.
+        <span className="advance is-done" aria-label={t('task.done')}>
+          <Check size={16} />
+        </span>
+      ) : (
+        <button
+          className="advance"
+          title={t(`task.${nextStatus[task.status]}`)}
+          aria-label={t(`task.${nextStatus[task.status]}`)}
+          onClick={(e) => {
+            e.stopPropagation()
+            saveTask({ ...task, status: nextStatus[task.status as keyof typeof nextStatus] })
+          }}
+        >
+          {task.status === 'in_progress' ? <ChevronRight size={16} /> : null}
+        </button>
+      )}
       <div className="grow">
         <div className="title">{task.title}</div>
         <div className="meta">

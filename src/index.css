@@ -221,6 +221,7 @@ h3 { font-size: 0.95rem; }
   background: var(--surface); display: grid; place-items: center; cursor: pointer; color: var(--muted);
 }
 .task .advance:hover { color: var(--primary); border-color: var(--primary); }
+.task .advance.is-done { cursor: default; background: var(--ok); border-color: var(--ok); color: #fff; }
 .task-list { padding: 4px 0; }
 .task-list .task { box-shadow: none; border-bottom: 1px solid var(--border); border-radius: 0; margin: 0; }
 .task-list .task:last-child { border-bottom: 0; }
