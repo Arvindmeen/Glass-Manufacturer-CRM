@@ -145,7 +145,9 @@ export function LeadsPage() {
           </Field>
           <Field label={t('field.website')} group>
             <button type="button" className={`toggle-chip${websiteOnly ? ' on' : ''}`} style={{ minHeight: 40, justifyContent: 'center' }} aria-pressed={websiteOnly} onClick={() => setWebsiteOnly((v) => !v)}>
-              {websiteOnly ? <Check size={16} strokeWidth={3} /> : <Globe size={16} />} {t('leads.hasWebsite')}
+              {websiteOnly ? <Check size={16} strokeWidth={3} /> : <Globe size={16} />}
+              <span className="label-long">{t('leads.hasWebsite')}</span>
+              <span className="label-short">{websiteOnly ? t('leads.checked') : t('leads.any')}</span>
             </button>
           </Field>
         </div>

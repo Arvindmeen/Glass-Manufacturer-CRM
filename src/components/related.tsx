@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Check, ChevronRight, Mic, Plus } from 'lucide-react'
+import { Check, ChevronRight, Plus } from 'lucide-react'
 import { useLocale, useT } from '../i18n'
 import { dueState, formatDate } from '../lib/format'
 import { fullName, saveTask, useDB } from '../store/db'
@@ -98,21 +98,16 @@ export function MeetingsSection({ filter, defaults }: { filter: (m: Meeting) => 
   const recent = useRecent()
   const locale = useLocale()
   const { meetings, people } = useDB()
-  const [editing, setEditing] = useState<{ meeting?: Meeting; voice?: boolean } | null>(null)
+  const [editing, setEditing] = useState<{ meeting?: Meeting } | null>(null)
   const list = meetings.filter(filter).sort((a, b) => b.date.localeCompare(a.date))
 
   return (
     <Section
       title={t('meeting.title')}
       action={
-        <div className="row-gap">
-          <button className="btn small accent" onClick={() => setEditing({ voice: true })} aria-label={t('meeting.byVoice')}>
-            <Mic size={16} />
-          </button>
-          <button className="btn small" onClick={() => setEditing({})}>
-            <Plus size={16} /> {t('common.add')}
-          </button>
-        </div>
+        <button className="btn small" onClick={() => setEditing({})}>
+          <Plus size={16} /> {t('common.add')}
+        </button>
       }
     >
       <div className="card">
@@ -147,7 +142,6 @@ export function MeetingsSection({ filter, defaults }: { filter: (m: Meeting) => 
         <MeetingForm
           meeting={editing.meeting}
           defaults={defaults}
-          startWithVoice={editing.voice}
           onClose={() => setEditing(null)}
         />
       )}

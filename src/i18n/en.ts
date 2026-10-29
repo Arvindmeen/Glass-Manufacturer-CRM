@@ -160,6 +160,7 @@ export const en = {
   'leads.region': 'Region',
   'leads.type': 'Type of business',
   'leads.minEmployees': 'Min. employees',
+  'leads.checked': 'Checked',
   'leads.hasWebsite': 'Website checked',
   'leads.searching': 'Searching commercial register…',
   'leads.checking': 'Checking websites…',

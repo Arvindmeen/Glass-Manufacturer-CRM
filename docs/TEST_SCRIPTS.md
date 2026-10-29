@@ -35,7 +35,7 @@ Legend: ☐ = check this result.
 | 1 | **Settings → Deutsch.** | ☐ Whole UI is German (Firmen, Personen, Aufgaben…). |
 | 2 | Mic: *"Ich habe heute Lukas Brand von Glas Neu GmbH in Bern getroffen, er ist Einkaufsleiter. Sie planen 40 Duschtrennwände. Erinnere mich, nächsten Montag ein Angebot zu schicken."* | ☐ Review (German): **Neue Firma** Glas Neu GmbH, **Neue Person** Lukas Brand (Einkaufsleiter) linked to it, **Neuer Termin**, **Neue Aufgabe** due next Monday. ☐ New items show green "+" chips. |
 | 3 | Tap ✏ on the person card, add his phone number. **Speichern**. | ☐ Company, person, meeting and task are created and linked; app opens Glas Neu GmbH; entries glow. |
-| 4 | On Lukas Brand's page: Termine → **mic** button ("Per Sprache füllen"). Say: *"Kurzes Telefonat, Muster für satiniertes Glas schicken."* | ☐ Meeting form fills title + summary in German; Lukas is ticked as participant (filled chip with ✓). ☐ Save → meeting appears on his page. |
+| 4 | Open Lukas Brand's page, tap the central **mic**. Say: *"Kurzes Telefonat, Muster für satiniertes Glas schicken."* | ☐ Review: **Neuer Termin** linked to Lukas Brand and Glas Neu GmbH (the open page), in German. ☐ Save → meeting glows on his page. |
 | 5 | Mic: *"Die Telefonnummer von Glas Neu ist 031 555 12 12 und die Aufgabe Angebot schicken ist erledigt."* | ☐ Review: **Firma ändern** (old phone struck through → new), **Aufgabe ändern** (Geplant → Erledigt). ☐ After saving both are updated. |
 | 6 | Mic: *"Switch to English."* | ☐ UI switches to English; step "Language · English" shown. |
 
@@ -62,11 +62,11 @@ Legend: ☐ = check this result.
 | # | Do | Expected |
 |---|---|---|
 | 1 | **More → Knowledge.** Search *"shower"*. Open **Frameless shower panel**. | ☐ Step-by-step tutorial with images. ☐ Chips (section, product, keywords) without "#"; tapping **ESG** lists matching entries; tapping **Installations** filters the section. |
-| 2 | Back on Knowledge, tap the orange **mic** (floating, bottom right). Tap the **camera** icon and add 2 photos. | ☐ Thumbnails appear; tap one to remove. |
+| 2 | Back on Knowledge, tap the central **mic** in the bottom bar. Tap the **camera** icon next to "Or type…" and add 2 photos. | ☐ Thumbnails appear; tap one to remove. |
 | 3 | Say: *"For the sliding door: first level the rail, max one millimetre per metre, then hang the door on the rollers and set the stoppers."* | ☐ Review: **New knowledge entry** with title, product, section Installations, 2 steps and the 2 photos. |
 | 4 | Save. | ☐ Opens the new entry; steps show the real photos (not placeholders). |
 | 5 | Knowledge → **Ask**. Drag the sheet's handle up. Ask: *"How do I seal the bottom edge of a shower panel?"* | ☐ Sheet goes full screen; answer cites the "Frameless shower panel" entry. |
-| 6 | In Ask, tap the mic and say: *"What did we discuss with Bader Architekten last time?"* | ☐ Input row turns into a recording bar; answer summarises the school facade meeting. Drag the sheet down to close (animated). |
+| 6 | Close Ask (drag the sheet down, animated). Tap the central **mic** and say: *"What did we discuss with Bader Architekten last time?"* | ☐ Answer card summarises the school facade meeting. |
 | 7 | Open the knowledge entry → ✏ → add a photo to a step via the camera button → Save. | ☐ Photo replaces the placeholder for that step. |
 
 ---

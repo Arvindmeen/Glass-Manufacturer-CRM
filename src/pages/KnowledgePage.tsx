@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, Navigate, Route, Routes, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ChevronRight, Loader2, MessageCircle, Mic, Pencil, Plus, Send } from 'lucide-react'
-import { openAssistant } from '../lib/assistantBus'
+import { ChevronRight, Loader2, MessageCircle, Pencil, Plus, Send } from 'lucide-react'
 import { useT } from '../i18n'
 import { ask } from '../lib/assistant'
 import { matches } from '../lib/format'
@@ -12,9 +11,8 @@ import { useDB } from '../store/db'
 import type { KnowledgeEntry } from '../types'
 import { blankKnowledge, KnowledgeForm, SECTIONS, sectionLabel } from '../components/KnowledgeForm'
 import { StepImage } from '../components/StepImage'
-import { PageHead, SearchInput, Sheet, toast, useClosing, useSearchQuery } from '../components/ui'
+import { PageHead, SearchInput, Sheet, useClosing, useSearchQuery } from '../components/ui'
 import { flash, useRecent } from '../lib/recent'
-import { VoiceRecorder } from '../components/VoiceRecorder'
 
 export function KnowledgePage() {
   return (
@@ -61,9 +59,6 @@ function KnowledgeList() {
             <button className="btn fab-alt" onClick={() => setChatOpen(true)}>
               <MessageCircle size={18} /> {t('kb.chat')}
             </button>
-            <button className="btn icon fab-mic" onClick={openAssistant} aria-label={t('kb.record')}>
-              <Mic size={20} />
-            </button>
             <button className="btn primary icon fab-main" onClick={() => setDraft(blankKnowledge())} aria-label={t('common.add')}>
               <Plus size={22} />
             </button>
@@ -74,7 +69,7 @@ function KnowledgeList() {
 
       <div className="section">
         <SearchInput value={q} onChange={setQ} placeholder={t('kb.searchProduct')} />
-        <div className="chips" style={{ marginBottom: 12 }}>
+        <div className="chip-scroll" style={{ marginBottom: 12 }}>
           {['', ...SECTIONS].map((s) => (
             <button key={s} className={`chip${section === s ? ' primary' : ''}`} style={{ padding: '6px 12px', border: 0, cursor: 'pointer' }} onClick={() => setSection(s)}>
               {t(s ? sectionLabel(s) : 'kb.all')}
@@ -176,7 +171,6 @@ function ChatSheet({ onClose }: { onClose: () => void }) {
   const [messages, setMessages] = useState<ChatMessage[]>(chatHistory)
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
-  const [recording, setRecording] = useState(false)
   const body = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -221,26 +215,16 @@ function ChatSheet({ onClose }: { onClose: () => void }) {
             void send(input)
           }}
         >
-          <VoiceRecorder
-            variant="icon"
-            onText={send}
-            onError={toast}
-            onActiveChange={setRecording}
+          <input
+            className="input"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder={t('kb.chatPlaceholder')}
+            enterKeyHint="send"
           />
-          {!recording && (
-            <input
-              className="input"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder={t('kb.chatPlaceholder')}
-              enterKeyHint="send"
-            />
-          )}
-          {!recording && (
-            <button className="btn primary icon" type="submit" disabled={!input.trim() || busy} aria-label={t('kb.chat')}>
-              <Send size={18} />
-            </button>
-          )}
+          <button className="btn primary icon" type="submit" disabled={!input.trim() || busy} aria-label={t('kb.chat')}>
+            <Send size={18} />
+          </button>
         </form>
       }
     >

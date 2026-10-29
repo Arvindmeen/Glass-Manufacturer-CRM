@@ -1,31 +1,19 @@
 import { useState } from 'react'
 import { useT } from '../i18n'
-import { chatJSON, text as asText } from '../lib/openai'
-import { todayISO } from '../lib/format'
 import { blankMeeting, deleteMeeting, fullName, saveMeeting, useDB } from '../store/db'
 import type { Meeting } from '../types'
 import { DatePicker, RemovableChip, Select, ToggleChips } from './Dropdown'
 import { companyOptions, personOptions } from './options'
 import { Field, Sheet, useClosing } from './ui'
-import { VoiceRecorder } from './VoiceRecorder'
-
-interface VoiceMeeting {
-  title?: string
-  summary?: string
-  date?: string
-  participantIds?: string[]
-}
 
 export function MeetingForm({
   meeting,
   defaults,
   onClose,
-  startWithVoice,
 }: {
   meeting?: Meeting
   defaults?: Partial<Meeting>
   onClose: () => void
-  startWithVoice?: boolean
 }) {
   const t = useT()
   const [closing, close] = useClosing(onClose)
@@ -40,27 +28,6 @@ export function MeetingForm({
 
   const toggle = (key: 'personIds' | 'companyIds', id: string) =>
     setD((x) => ({ ...x, [key]: x[key].includes(id) ? x[key].filter((v) => v !== id) : [...x[key], id] }))
-
-  const fillFromVoice = async (text: string) => {
-    const list = candidates.map((p) => `${p.id}: ${fullName(p)} (${p.role})`).join('\n')
-    const r = await chatJSON<VoiceMeeting>(
-      `You turn a sales rep's spoken meeting note into a CRM meeting record.
-Today is ${todayISO()}. Write in English or German (see language rule), translating if the note is in another language.
-Return JSON: {"title": short title (max 6 words), "summary": concise summary of what was discussed, keep all facts, numbers, products and agreements, use short lines, "date": "YYYY-MM-DD" only if a meeting date is mentioned, "participantIds": ids from the candidate list that took part}.
-Candidates:
-${list || '(none)'}`,
-      text,
-    )
-    const date = asText(r.date)
-    const ids = Array.isArray(r.participantIds) ? r.participantIds : []
-    setD((x) => ({
-      ...x,
-      title: asText(r.title) || x.title,
-      summary: [x.summary, asText(r.summary) || text].filter(Boolean).join('\n'),
-      date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : x.date,
-      personIds: [...new Set([...x.personIds, ...ids.filter((id) => people.some((p) => p.id === id))])],
-    }))
-  }
 
   return (
     <Sheet
@@ -99,7 +66,6 @@ ${list || '(none)'}`,
       }
     >
       <div className="form">
-        <VoiceRecorder big label={t('meeting.byVoice')} onText={fillFromVoice} autoStart={startWithVoice} />
         <div className="row">
           <Field label={t('field.date')} group>
             <DatePicker label={t('field.date')} value={d.date} onChange={(date) => setD({ ...d, date })} />

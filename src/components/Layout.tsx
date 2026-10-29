@@ -13,7 +13,6 @@ import {
   Landmark,
 } from 'lucide-react'
 import { useT, type TKey } from '../i18n'
-import { onOpenAssistant } from '../lib/assistantBus'
 import { STORAGE_FULL, useDB } from '../store/db'
 import { Sheet, toast, Toaster, useClosing } from './ui'
 import { VoiceCommand } from './VoiceCommand'
@@ -42,8 +41,6 @@ export function Layout() {
   const [moreOpen, setMoreOpen] = useState(false)
   const { pathname } = useLocation()
   const moreActive = secondary.some((n) => pathname.startsWith(n.to))
-
-  useEffect(() => onOpenAssistant(() => setVoiceOpen(true)), [])
 
   useEffect(() => {
     const warn = () => toast(t('common.storageFull'))

@@ -595,11 +595,6 @@ h3 { font-size: 0.95rem; }
 .photo-strip { display: flex; gap: 8px; flex-wrap: wrap; }
 .photo-strip .step-thumb { width: 56px; height: 56px; }
 
-.page-fabs .fab-mic { background: var(--accent); border-color: var(--accent); color: #fff; }
-.page-fabs .fab-mic:hover { filter: brightness(1.06); background: var(--accent); }
-@media (max-width: 899px) {
-  .page-fabs .fab-mic { width: 48px; height: 48px; border-radius: 16px; box-shadow: 0 4px 14px rgb(228 87 46 / 40%); }
-}
 
 /* Chips that lead somewhere */
 a.chip-link { cursor: pointer; transition: filter 0.12s, box-shadow 0.12s; }
@@ -607,3 +602,20 @@ a.chip-link:hover { filter: brightness(0.95); box-shadow: inset 0 0 0 1px curren
 a.chip-link:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
 .text-link { color: var(--primary); }
 .text-link:hover { text-decoration: underline; }
+
+/* One swipeable row of filter chips; only the row scrolls, never the page. */
+.chip-scroll {
+  display: flex; gap: 6px; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden;
+  -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; scroll-snap-type: x proximity;
+  scrollbar-width: none; margin-inline: -16px; padding-inline: 16px; scroll-padding-inline: 16px;
+}
+.chip-scroll::-webkit-scrollbar { display: none; }
+.chip-scroll > * { flex: none; white-space: nowrap; scroll-snap-align: start; }
+@media (min-width: 900px) { .chip-scroll { margin-inline: 0; padding-inline: 0; } }
+
+/* Long label on wide screens, compact label on phones. */
+.label-short { display: none; }
+@media (max-width: 699px) {
+  .label-long { display: none; }
+  .label-short { display: inline; }
+}

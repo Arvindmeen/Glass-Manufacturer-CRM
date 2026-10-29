@@ -1,6 +1,6 @@
 # Voice assistant test scripts — 5 users × 5 commands
 
-Every ability of the central voice assistant (orange mic in the bottom bar on phones, **Speak** in the sidebar on desktop), tested by five users in five situations. Say each line after tapping the mic, then tap **✓**. Without a microphone, type the same line into "Or type…".
+Every ability of the central voice assistant — the only microphone in the app (orange mic in the bottom bar on phones, **Speak** in the sidebar on desktop), tested by five users in five situations. Say each line after tapping the mic, then tap **✓**. Without a microphone, type the same line into "Or type…".
 
 **Before each user:** Settings → **Reset demo data**, OpenAI key saved. Commands build on each other within one user, so run them in order.
 
@@ -52,11 +52,11 @@ Legend: ☐ = check this result. "Review" = the list of proposals you can accept
 
 | # | Say | Expected |
 |---|---|---|
-| 1 | Knowledge page → floating **mic**. Attach 2 photos (camera icon). *"For the sliding door: level the rail, max one millimetre per metre, then hang the door on the rollers and set the stoppers."* | ☐ **New knowledge entry**, section Installations, 2 steps, 2 photos in the review card. ☐ Save → entry opens with the real photos. |
+| 1 | Knowledge page → central **mic**. Attach 2 photos (camera icon next to "Or type…"). *"For the sliding door: level the rail, max one millimetre per metre, then hang the door on the rollers and set the stoppers."* | ☐ **New knowledge entry**, section Installations, 2 steps, 2 photos in the review card. ☐ Save → entry opens with the real photos. |
 | 2 | *"Condensation between the panes at Hotel Bellevue means the edge seal failed, add that as a troubleshooting tip."* | ☐ **New knowledge entry** in Troubleshooting (and/or a note on Hotel Bellevue). |
 | 3 | *"Extract the quote from Peter Zbinden's email."* | ☐ Inbox opens that email and extraction starts by itself (items, quantities, dimensions). |
-| 4 | Company page Hotel Bellevue → Meetings → small orange **mic**. *"Site visit, measured five walls, logo engraving confirmed."* | ☐ Meeting form fills title, summary, date; Michael Schmid ticked. |
-| 5 | Knowledge → **Ask** → mic in the input row. *"How do I mount a glass balcony railing?"* | ☐ Input row becomes a recording bar; answer uses the "Glass balcony railing" entry. |
+| 4 | Open company page Hotel Bellevue → central **mic**. *"Site visit, measured five walls, logo engraving confirmed."* | ☐ Review: **New meeting** linked to Hotel Bellevue (the open page) and Michael Schmid. ☐ Save → it glows in the company's meetings. |
+| 5 | Central **mic**: *"How do I mount a glass balcony railing?"* | ☐ Answer card uses the "Glass balcony railing" entry. (The typed **Ask** chat answers the same way.) |
 
 ---
 
@@ -90,7 +90,7 @@ Legend: ☐ = check this result. "Review" = the list of proposals you can accept
 | Route planning → Google Maps | 3·4 |
 | Quote extraction from email | 4·3 |
 | Switch language | 2·5 |
-| Meeting "Fill by voice", chat mic | 4·4, 4·5 |
+| Meeting on the open company page, questions | 4·4, 4·5 |
 | German speech, other languages → EN/DE answer | 2·1, 5·3 |
 | Security refusals, minimal personal data | 5·1, 5·2, 5·4 |
 | Mic denied, missing key, cancel | 5·5 |

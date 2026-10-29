@@ -150,6 +150,7 @@ export const de: Record<TKey, string> = {
   'leads.region': 'Region',
   'leads.type': 'Branche',
   'leads.minEmployees': 'Min. Mitarbeitende',
+  'leads.checked': 'Geprüft',
   'leads.hasWebsite': 'Website geprüft',
   'leads.searching': 'Handelsregister wird durchsucht…',
   'leads.checking': 'Websites werden geprüft…',
