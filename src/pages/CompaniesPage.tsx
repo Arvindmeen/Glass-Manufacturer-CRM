@@ -3,8 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Check, ChevronRight, Loader2, Navigation, Plus, Route } from 'lucide-react'
 import { useT } from '../i18n'
 import { matches } from '../lib/format'
-import { embedArea, embedPlace, embedRoute, locate, routePoint } from '../lib/geo'
-import { currentPosition, googleMapsRoute, haversine, planRoute, splitLegs, type Point } from '../lib/route'
+import { addressOf, embedArea, embedPlace, embedRoute, locate, routePoint } from '../lib/geo'
+import { currentPosition, googleMapsRoute, haversine, planRoute, PREVIEW_POINTS, splitLegs, TRIP_POINTS, type Point } from '../lib/route'
 import { useDB } from '../store/db'
 import type { Company } from '../types'
 import { CompanyForm } from '../components/forms'
@@ -33,6 +33,7 @@ export function CompaniesPage() {
   const [selected, setSelected] = useState<string[]>([])
   const [route, setRoute] = useState<PlannedRoute | null>(null)
   const [leg, setLeg] = useState(0)
+  const [trip, setTrip] = useState(0)
   const [planning, setPlanning] = useState(false)
   const [focus, setFocus] = useState<Company | null>(null)
 
@@ -59,6 +60,7 @@ export function CompaniesPage() {
     // Stops without coordinates cannot be ordered; they go last.
     setRoute({ stops: [...r.order.map((i) => stops[i]), ...unlocated], km: r.km, start })
     setLeg(0)
+    setTrip(0)
     setPlanning(false)
   }
 
@@ -74,18 +76,22 @@ export function CompaniesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routeParam])
 
-  // Route points in driving order (the rep's position first, as stop 0), split into legs Google Maps can take.
-  const legs = route
-    ? splitLegs([
-        ...(route.start ? [{ n: 0, point: `${route.start.lat},${route.start.lng}` }] : []),
-        ...route.stops.map((c, i) => ({ n: i + 1, point: routePoint(c) })),
-      ])
+  // Route points in driving order (the rep's position first, as stop 0).
+  const points = route
+    ? [
+        ...(route.start ? [{ n: 0, map: `${route.start.lat},${route.start.lng}`, nav: `${route.start.lat},${route.start.lng}` }] : []),
+        ...route.stops.map((c, i) => ({ n: i + 1, map: addressOf(c), nav: routePoint(c) })),
+      ]
     : []
+  // The map box previews one short part at a time; Google Maps gets the whole plan (or parts of 10 points).
+  const legs = splitLegs(points, PREVIEW_POINTS)
   const active = legs[Math.min(leg, legs.length - 1)] ?? []
   const inLeg = (n: number) => legs.length < 2 || (n >= active[0].n && n <= active[active.length - 1].n)
+  const trips = splitLegs(points, TRIP_POINTS)
+  const tripNow = Math.min(trip, trips.length - 1)
 
   const mapSrc = route
-    ? embedRoute(active.map((p) => p.point))
+    ? embedRoute(active.map((p) => p.map))
     : focus
       ? embedPlace(focus)
       : embedArea(list.map(locate).filter((p): p is Point => !!p))
@@ -169,14 +175,14 @@ export function CompaniesPage() {
                 </button>
                 <a
                   className="btn primary lg grow"
-                  href={googleMapsRoute(active.map((p) => p.point))}
+                  href={googleMapsRoute((trips[tripNow] ?? []).map((p) => p.nav))}
                   target="_blank"
                   rel="noreferrer"
-                  // After opening one leg, the button moves on to the next.
-                  onClick={() => setLeg((l) => Math.min(l + 1, legs.length - 1))}
+                  // After opening one part, the button moves on to the next.
+                  onClick={() => setTrip((x) => Math.min(x + 1, trips.length - 1))}
                 >
                   <Navigation size={18} /> {t('company.openRoute')}
-                  {legs.length > 1 && ` ${Math.min(leg, legs.length - 1) + 1}/${legs.length}`}
+                  {trips.length > 1 && ` ${tripNow + 1}/${trips.length}`}
                 </a>
               </div>
             </div>

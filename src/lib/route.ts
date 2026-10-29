@@ -105,12 +105,13 @@ export function planRoute(points: Point[], start?: Point) {
 }
 
 /**
- * Google Maps takes at most 3 waypoints in mobile browsers (9 in the app), so long routes are split
- * into legs of up to 5 points (origin, 3 waypoints, destination). Each leg starts where the last one ended.
+ * Google Maps directions take up to 10 points (origin, 8 waypoints, destination); the keyless
+ * map preview only draws short routes. Longer routes are split into parts, each starting where the last ended.
  */
-export const LEG_POINTS = 5
+export const TRIP_POINTS = 10
+export const PREVIEW_POINTS = 5
 
-export function splitLegs<T>(points: T[], size = LEG_POINTS): T[][] {
+export function splitLegs<T>(points: T[], size: number): T[][] {
   if (points.length <= size) return [points]
   const legs: T[][] = []
   for (let i = 0; i < points.length - 1; i += size - 1) legs.push(points.slice(i, i + size))
