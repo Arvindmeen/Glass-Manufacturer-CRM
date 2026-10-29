@@ -47,7 +47,7 @@ Legend: ☐ = check this result.
 | # | Do | Expected |
 |---|---|---|
 | 1 | Open **Inbox**. | ☐ Two-pane view; unread mails bold; quote requests have an orange "Quote request" chip; unread count in sidebar. |
-| 2 | Open **Peter Zbinden — Anfrage Offerte Duschtrennwände** → **Extract request**. | ☐ Customer *Sanitär Zbinden AG*, contact, 3 items with qty and dimensions (stabiliser bars: dimensions **Missing**, not invented). |
+| 2 | Open **Peter Zbinden — Quote request: shower partitions** (German: *Anfrage Offerte Duschtrennwände*) → **Extract request**. | ☐ Customer *Sanitär Zbinden AG*, contact, 3 items with qty and dimensions (stabiliser bars: dimensions **Missing**, not invented). |
 | 3 | Change a quantity, delete one line, **Add item**, then **Confirm** → **Transfer to Safir**. | ☐ Spinner, then green "Transferred to Safir · date/time"; list chip turns green. Customer name links to the company. |
 | 4 | Press **Speak** (sidebar) and type: *"Extract the quote from Hotel Bellevue."* | ☐ Opens that email and starts extraction automatically. |
 | 5 | **Lead search**: Region **Bern**, type **Plumbing / bathrooms**, Min. employees **10+** → **Search**. | ☐ "Searching commercial register…" → "Checking websites…" → results with website ✓, fit %. ☐ **Add** on one → "Added"; it appears under Companies. |

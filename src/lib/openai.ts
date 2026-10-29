@@ -69,7 +69,7 @@ export async function chat(messages: ChatMessage[], opts: { json?: boolean; temp
   if (hasForeignScript(reply)) {
     // One retry with an explicit correction; never show another language or script.
     const lang = getSettings().lang === 'de' ? 'German' : 'English'
-    reply = await complete([...guarded, { role: 'system', content: `Your previous answer used a language other than English or German. Answer again, only in ${lang}.` }], opts)
+    reply = await complete([...guarded, { role: 'system', content: `Your previous answer used another language. Answer again, only in ${lang}.` }], opts)
     if (hasForeignScript(reply)) throw new GuardError('language')
   }
   // Replies that leak instructions, secrets or bulk personal data never reach the screen.

@@ -1,5 +1,6 @@
 import { localISO } from '../lib/format'
 import type { Company, DB, Email, KnowledgeEntry, Meeting, Person, Task } from '../types'
+import { getSettings, type Lang } from './settings'
 
 const day = (offset: number) => {
   const d = new Date()
@@ -154,8 +155,8 @@ const knowledge: Omit<KnowledgeEntry, 'createdAt'>[] = [
 const emails: Email[] = [
   {
     id: 'e1', fromName: 'Peter Zbinden', fromEmail: 'p.zbinden@zbinden-sanitaer.ch', date: stamp(0, 8), read: false, isQuote: true,
-    subject: 'Anfrage Offerte Duschtrennwände',
-    body: 'Guten Tag\n\nFür ein Mehrfamilienhaus in Spiez benötigen wir eine Offerte für:\n\n- 6 Stk. Duschwände ESG 8 mm klar, 900 x 2000 mm\n- 6 Stk. Pendeltüren ESG 8 mm klar, 800 x 2000 mm\n- 6 Stk. Stabilisationsstangen, chrom\n\nLiefertermin wäre KW 49. Bitte um Rückmeldung bis Ende Woche.\n\nFreundliche Grüsse\nPeter Zbinden\nSanitär Zbinden AG',
+    subject: 'Quote request: shower partitions',
+    body: 'Hello\n\nFor an apartment building in Spiez we need a quote for:\n\n- 6 pcs shower panels ESG 8 mm clear, 900 x 2000 mm\n- 6 pcs swing doors ESG 8 mm clear, 800 x 2000 mm\n- 6 pcs stabiliser bars, chrome\n\nDelivery would be week 49. Please reply by the end of the week.\n\nKind regards\nPeter Zbinden\nSanitär Zbinden AG',
   },
   {
     id: 'e2', fromName: 'Laura Baumann', fromEmail: 'l.baumann@steiner-innenausbau.ch', date: stamp(-1, 14), read: false, isQuote: true,
@@ -164,39 +165,213 @@ const emails: Email[] = [
   },
   {
     id: 'e3', fromName: 'Sabrina Moser', fromEmail: 's.moser@kuechen-moser.ch', date: stamp(-1, 9), read: true, isQuote: true,
-    subject: 'Küchenrückwände – 3 Küchen',
-    body: 'Hoi zäme\n\nIch bräuchte eine Offerte für drei Küchenrückwände ESG 6 mm farbig:\n\n1. Anthrazit RAL 7016, 3200 x 650 mm, 2 Steckdosenausschnitte\n2. Salbeigrün, 2400 x 600 mm\n3. Weiss RAL 9010, 2800 x 650 mm, 3 Steckdosenausschnitte\n\nMerci und liebe Grüsse\nSabrina',
+    subject: 'Kitchen splashbacks – 3 kitchens',
+    body: 'Hi all\n\nI need a quote for three coloured kitchen splashbacks ESG 6 mm:\n\n1. Anthracite RAL 7016, 3200 x 650 mm, 2 socket cut-outs\n2. Sage green, 2400 x 600 mm\n3. White RAL 9010, 2800 x 650 mm, 3 socket cut-outs\n\nThanks and best wishes\nSabrina',
   },
   {
     id: 'e4', fromName: 'Martin Aebi', fromEmail: 'm.aebi@bg-aaretal.ch', date: stamp(-2, 11), read: true, isQuote: false,
-    subject: 'Termin Begehung',
-    body: 'Guten Tag\n\nKönnen wir die Begehung der Siedlung auf den 12. verschieben? Der Hauswart ist am ursprünglichen Termin nicht da.\n\nGruss\nMartin Aebi',
+    subject: 'Site inspection date',
+    body: 'Hello\n\nCan we move the inspection of the estate to the 12th? The caretaker is not available on the original date.\n\nRegards\nMartin Aebi',
   },
   {
     id: 'e5', fromName: 'Hotel Bellevue Seeblick', fromEmail: 'technik@bellevue-seeblick.ch', date: stamp(-3, 16), read: true, isQuote: true,
-    subject: 'Glaswände Wellnessbereich',
-    body: 'Sehr geehrte Damen und Herren\n\nWir planen den Umbau unseres Wellnessbereichs und bitten um eine Offerte:\n\n- 5 Glaswände ESG 10 mm satiniert, 1500 x 2400 mm, mit Logo-Gravur\n- 1 Ganzglastür ESG 10 mm satiniert, 900 x 2100 mm\n\nMit freundlichen Grüssen\nMichael Schmid\nTechnischer Leiter',
+    subject: 'Glass walls for the wellness area',
+    body: 'Dear Sir or Madam\n\nWe are planning to renovate our wellness area and would like a quote for:\n\n- 5 glass walls ESG 10 mm satin, 1500 x 2400 mm, with logo engraving\n- 1 all-glass door ESG 10 mm satin, 900 x 2100 mm\n\nYours sincerely\nMichael Schmid\nTechnical manager',
   },
   {
     id: 'e6', fromName: 'Corinne Kunz', fromEmail: 'c.kunz@badraum-kunz.ch', date: stamp(-4, 10), read: true, isQuote: false,
-    subject: 'Re: Ersatz Glas',
-    body: 'Danke für die schnelle Antwort. Der Ersatz kann direkt auf die Baustelle in Lyss geliefert werden.\n\nCorinne',
+    subject: 'Re: Replacement glass',
+    body: 'Thanks for the quick reply. The replacement can be delivered straight to the site in Lyss.\n\nCorinne',
   },
   {
     id: 'e7', fromName: 'Glas-Fachverband Newsletter', fromEmail: 'news@glas-fachverband.example', date: stamp(-5, 7), read: true, isQuote: false,
-    subject: 'Messe Swissbau 2027 – Save the date',
-    body: 'Die Swissbau findet vom 19. bis 22. Januar 2027 in Basel statt.',
+    subject: 'Swissbau 2027 trade fair – save the date',
+    body: 'Swissbau takes place in Basel from 19 to 22 January 2027.',
   },
 ]
 
-export function seed(): DB {
+/* ---------- German texts of the demo data (names, addresses and numbers stay as they are) ---------- */
+
+type Step = { text: string; image?: string }
+export type SeedText = Record<string, string | string[] | Step[]>
+
+const DE: Record<string, SeedText> = {
+  c1: { industry: 'Schreinerei', notes: 'Langjähriger Kunde. Lieferung am liebsten dienstagmorgens.' },
+  c2: { industry: 'Glaserei', notes: 'Bestellt grosse Mengen Floatglas. Zahlt innert 10 Tagen.' },
+  c3: { industry: 'Architektur', notes: 'Plant Glasfassaden für öffentliche Bauten.' },
+  c4: { industry: 'Sanitär', notes: 'Duschabtrennungen für Sanierungsprojekte.' },
+  c5: { industry: 'Fensterbau', notes: 'Isolierglas, Dreifachverglasung.' },
+  c6: { industry: 'Holzbau', notes: 'Chalet-Renovationen, grosse Panoramafenster.' },
+  c7: { industry: 'Innenausbau', notes: 'Glastrennwände für Büros.' },
+  c8: { industry: 'Metallbau', notes: 'Balkongeländer mit Verbundsicherheitsglas.' },
+  c9: { industry: 'Küchenstudio', notes: 'Farbige Glasrückwände.' },
+  c10: { industry: 'Wohnbaugenossenschaft', notes: 'Sanierungsprogramm 2027: 64 Wohnungen.' },
+  c11: { industry: 'Architektur' },
+  c12: { industry: 'Schreinerei', notes: 'Kleiner Betrieb, bestellt Glastüren für Möbel.' },
+  c13: { industry: 'Hotellerie', notes: 'Umbau Wellnessbereich, Glaswände.' },
+  c14: { industry: 'Fassadenbau', notes: 'Structural Glazing, braucht heissgelagertes ESG (Heat-Soak-Test).' },
+  c15: { industry: 'Badgestaltung', notes: 'Rahmenlose Duschen, bevorzugt ESG 8 mm klar.' },
+
+  p1: { role: 'Projektleiterin' },
+  p2: { role: 'Inhaber' },
+  p3: { role: 'Geschäftsführer' },
+  p4: { role: 'Einkauf' },
+  p5: { role: 'Architekt, Partner' },
+  p6: { role: 'Architektin', notes: 'Arbeitet Teilzeit für beide Büros.' },
+  p7: { role: 'Inhaber' },
+  p8: { role: 'Produktionsleiter' },
+  p9: { role: 'Geschäftsführerin' },
+  p10: { role: 'Inhaber' },
+  p11: { role: 'Verkauf' },
+  p12: { role: 'Werkstattleiter' },
+  p13: { role: 'Küchenplanerin' },
+  p14: { role: 'Facility Manager' },
+  p15: { role: 'Architektin, Inhaberin' },
+  p16: { role: 'Inhaber' },
+  p17: { role: 'Technischer Leiter' },
+  p18: { role: 'Projektingenieurin' },
+  p19: { role: 'CEO' },
+  p20: { role: 'Inhaberin' },
+  p21: { role: 'Monteur', notes: 'Freischaffender Monteur, arbeitet auch für Zbinden.' },
+  p22: { role: 'Buchhaltung' },
+  p23: { role: 'Bauleiter' },
+  p24: { role: 'Innenarchitektin' },
+  p25: { role: 'Präsident Vorstand' },
+
+  m1: { title: 'Duschwände für Mehrfamilienhaus', summary: 'Anna braucht ESG 8 mm klar für 6 Bäder. Möchte Muster in matt. Entscheid bis Ende Monat.' },
+  m2: { title: 'Jährliche Preisbesprechung', summary: '3 % Mengenrabatt ab 500 m² pro Jahr vereinbart. Markus fragte nach schnellerer Lieferung nach Zollikofen.' },
+  m3: { title: 'Schulhausfassade Bern West', summary: 'Fassade mit Dreifach-Isolierglas, Ug 0,5. Lukas schickt nächste Woche die Pläne. Zwei weitere Anbieter im Rennen.' },
+  m4: { title: 'Balkongeländer', summary: 'Verbundsicherheitsglas VSG 2x8 mm für 40 Geländer. Nicole braucht Angaben zur Kantenbearbeitung.' },
+  m5: { title: 'Glaswände Wellnessbereich', summary: 'Michael möchte satinierte Glaswände mit Logo-Gravur. Begehung geplant.' },
+  m6: { title: 'Sanierungsprogramm 2027', summary: 'Fensterersatz für 64 Wohnungen in drei Etappen. Martin lädt im Frühling zur Ausschreibung ein.' },
+  m7: { title: 'Muster Küchenrückwände', summary: 'RAL-Farbmuster gezeigt. Sabrina gefallen Anthrazit und Salbeigrün. Bestellt 3 Küchen pro Monat.' },
+  m8: { title: 'Reklamation rahmenlose Dusche', summary: 'Eine Glasscheibe mit abgeplatzter Kante geliefert. Ersatz innert einer Woche versprochen. Corinne sonst zufrieden.' },
+  m9: { title: 'Büro-Trennwände', summary: 'Glastrennwände für ein Büro mit 600 m² in Bern. Daniel und Laura brauchen eine Offerte für Akustikglas.' },
+  m10: { title: 'Structural-Glazing-Projekt', summary: 'Heissgelagertes ESG erforderlich. Andrea schickt die Statik.' },
+
+  t1: { title: 'Offerte für Duschwände senden' },
+  t2: { title: 'Muster in matt mitbringen' },
+  t3: { title: 'Lieferfenster Zollikofen prüfen' },
+  t4: { title: 'Fassadenofferte Ug 0,5 vorbereiten' },
+  t5: { title: 'Spezifikation Kantenbearbeitung senden' },
+  t6: { title: 'Begehung Wellnessbereich' },
+  t7: { title: 'Beschädigte Duschwand ersetzen' },
+  t8: { title: 'Offerte Akustikglas' },
+  t9: { title: 'RAL-Farbkarte senden' },
+  t10: { title: 'Ausschreibung nachfassen' },
+  t11: { title: 'Jahresrabatt bestätigen' },
+  t12: { title: 'Neues Chalet-Projekt besuchen' },
+
+  k1: {
+    title: 'Rahmenlose Duschwand', product: 'ESG 8 mm Duschwand',
+    summary: 'Wandmontierte rahmenlose Glaswand mit Klemmen und Stabilisationsstange.',
+    tags: ['Dusche', 'ESG', 'Bad'],
+    steps: [
+      { text: 'Prüfen, ob die Wand lotrecht und gefliest ist. Klemmpositionen 200 mm von Ober- und Unterkante anzeichnen.', image: 'Klemmpositionen anzeichnen' },
+      { text: '6-mm-Löcher bohren, Dübel setzen und die Wandklemmen befestigen. Nicht zu fest anziehen.', image: 'Wandklemmen befestigen' },
+      { text: 'Glas auf zwei 6-mm-Klötze stellen. Mit den Gummidichtungen in die Klemmen einsetzen.', image: 'Glas einsetzen' },
+      { text: 'Stabilisationsstange auf 2000 mm Höhe montieren. Waage prüfen und alle Schrauben anziehen.', image: 'Stabilisationsstange' },
+      { text: 'Klötze entfernen und die Unterkante mit transparentem Silikon abdichten. 24 h nicht benutzen.', image: 'Unterkante abdichten' },
+    ],
+  },
+  k2: {
+    title: 'Glas-Balkongeländer', product: 'VSG 2x8 mm Geländer',
+    summary: 'Geländer im Bodenprofil mit Verbundsicherheitsglas.',
+    tags: ['Geländer', 'VSG', 'aussen'],
+    steps: [
+      { text: 'Aluminium-Bodenprofil alle 300 mm verankern. Dübeltyp gemäss Lasttabelle wählen.', image: 'Bodenprofil verankern' },
+      { text: 'Glas mit Saughebern einsetzen. Mindestens zwei Personen.', image: 'Glas einsetzen' },
+      { text: 'Glas mit den Klemmeinsätzen verkeilen. Mit dem Justierschlüssel senkrecht ausrichten.', image: 'Klemmen und ausrichten' },
+      { text: 'Handlaufkappe und Abdeckleisten montieren.', image: 'Handlaufkappe' },
+    ],
+  },
+  k3: {
+    title: 'Küchenrückwand', product: 'Farbige ESG 6 mm Rückwand',
+    summary: 'Geklebte Rückwand mit Ausschnitten für Steckdosen.',
+    tags: ['Küche', 'ESG', 'Kleben'],
+    steps: [
+      { text: 'Wand reinigen. Sie muss trocken, eben und staubfrei sein.', image: 'Wand reinigen' },
+      { text: 'Spiegelkleber in senkrechten Streifen im Abstand von 10 cm auftragen. Nie essigvernetzendes Silikon verwenden.', image: 'Kleber auftragen' },
+      { text: 'Glas andrücken, Ausschnitte auf die Steckdosen ausrichten. 24 h abstützen.', image: 'Glas andrücken' },
+    ],
+  },
+  k4: {
+    title: 'Glastrennwand Büro', product: 'VSG Akustik-Trennwand 10 mm',
+    summary: 'Raumhohe Trennwand in U-Profilen.',
+    tags: ['Büro', 'Akustik', 'Trennwand'],
+    steps: [
+      { text: 'Decken- und Boden-U-Profile in einer Flucht befestigen. Laser verwenden.', image: 'U-Profile befestigen' },
+      { text: 'Glas zuerst oben einsetzen, dann ins Bodenprofil absenken.', image: 'Glas einsetzen' },
+      { text: 'Fugen beidseitig mit der Akustikdichtung füllen.', image: 'Akustikdichtung' },
+      { text: 'Gläser mit transparenten H-Profilen oder Stossfugenband verbinden.', image: 'Gläser verbinden' },
+    ],
+  },
+  k5: {
+    title: 'ESG vs. VSG', product: 'Sicherheitsglas',
+    summary: 'ESG (vorgespannt) zerfällt in kleine Krümel. VSG (Verbund) bleibt dank PVB-Folie ganz. Geländer und Überkopfverglasungen brauchen VSG; Duschen meist ESG.',
+    tags: ['ESG', 'VSG', 'Grundlagen'],
+  },
+  k6: {
+    title: 'Kondensat zwischen den Scheiben', product: 'Isolierglas',
+    summary: 'Kondensat im Isolierglas bedeutet, dass der Randverbund versagt hat. Das Glas muss ersetzt werden, eine Reparatur ist nicht möglich. Garantiedatum auf dem Abstandhalter prüfen.',
+    tags: ['Isolierglas', 'Garantie'],
+  },
+  k7: {
+    title: 'Lieferzeiten', product: 'Alle Produkte',
+    summary: 'Floatglas nach Mass: 3 Tage. ESG: 7 Tage. VSG: 10 Tage. Farbiges ESG: 12 Tage. Heat-Soak-Test plus 2 Tage.',
+    tags: ['Lieferung', 'Lieferzeit'],
+  },
+
+  e1: {
+    subject: 'Anfrage Offerte Duschtrennwände',
+    body: 'Guten Tag\n\nFür ein Mehrfamilienhaus in Spiez benötigen wir eine Offerte für:\n\n- 6 Stk. Duschwände ESG 8 mm klar, 900 x 2000 mm\n- 6 Stk. Pendeltüren ESG 8 mm klar, 800 x 2000 mm\n- 6 Stk. Stabilisationsstangen, chrom\n\nLiefertermin wäre KW 49. Bitte um Rückmeldung bis Ende Woche.\n\nFreundliche Grüsse\nPeter Zbinden\nSanitär Zbinden AG',
+  },
+  e2: {
+    subject: 'Offertanfrage: Akustik-Glastrennwände',
+    body: 'Guten Tag\n\nwie mit Daniel besprochen, bitte senden Sie uns eine Offerte für das Büroprojekt in Bern:\n\n- 14 Gläser VSG Akustik 10 mm, 1200 x 2800 mm\n- 2 Glastüren ESG 10 mm, 1000 x 2200 mm, mit Griffen\n\nLieferung auf die Baustelle im Januar.\n\nFreundliche Grüsse\nLaura Baumann',
+  },
+  e3: {
+    subject: 'Küchenrückwände – 3 Küchen',
+    body: 'Hoi zäme\n\nIch bräuchte eine Offerte für drei Küchenrückwände ESG 6 mm farbig:\n\n1. Anthrazit RAL 7016, 3200 x 650 mm, 2 Steckdosenausschnitte\n2. Salbeigrün, 2400 x 600 mm\n3. Weiss RAL 9010, 2800 x 650 mm, 3 Steckdosenausschnitte\n\nMerci und liebe Grüsse\nSabrina',
+  },
+  e4: {
+    subject: 'Termin Begehung',
+    body: 'Guten Tag\n\nKönnen wir die Begehung der Siedlung auf den 12. verschieben? Der Hauswart ist am ursprünglichen Termin nicht da.\n\nGruss\nMartin Aebi',
+  },
+  e5: {
+    subject: 'Glaswände Wellnessbereich',
+    body: 'Sehr geehrte Damen und Herren\n\nWir planen den Umbau unseres Wellnessbereichs und bitten um eine Offerte:\n\n- 5 Glaswände ESG 10 mm satiniert, 1500 x 2400 mm, mit Logo-Gravur\n- 1 Ganzglastür ESG 10 mm satiniert, 900 x 2100 mm\n\nMit freundlichen Grüssen\nMichael Schmid\nTechnischer Leiter',
+  },
+  e6: {
+    subject: 'Re: Ersatz Glas',
+    body: 'Danke für die schnelle Antwort. Der Ersatz kann direkt auf die Baustelle in Lyss geliefert werden.\n\nCorinne',
+  },
+  e7: {
+    subject: 'Messe Swissbau 2027 – Save the date',
+    body: 'Die Swissbau findet vom 19. bis 22. Januar 2027 in Basel statt.',
+  },
+}
+
+/** English (base) and German text of every demo record, for switching the language later. */
+export function seedTexts(): Record<string, { en: SeedText; de: SeedText }> {
+  const base: Record<string, Record<string, unknown>> = Object.fromEntries(
+    [...companies, ...people, ...meetings, ...tasks, ...knowledge, ...emails].map((r) => [r.id, r as unknown as Record<string, unknown>]),
+  )
+  return Object.fromEntries(
+    Object.entries(DE).map(([id, de]) => [id, { en: Object.fromEntries(Object.keys(de).map((k) => [k, base[id][k] as SeedText[string]])), de }]),
+  )
+}
+
+const local = <T extends { id: string }>(r: T, lang: Lang): T => (lang === 'de' && DE[r.id] ? { ...r, ...DE[r.id] } : r)
+
+export function seed(lang: Lang = getSettings().lang): DB {
   const created = new Date().toISOString()
   return {
-    companies: companies.map((c) => ({ ...c, createdAt: created })),
-    people: people.map((p) => ({ notes: '', ...p, createdAt: created })),
-    meetings: meetings.map((m) => ({ ...m, createdAt: created })),
-    tasks: tasks.map((t) => ({ ...t, createdAt: created })),
-    knowledge: knowledge.map((k) => ({ ...k, createdAt: created })),
-    emails,
+    companies: companies.map((c) => ({ ...local(c, lang), createdAt: created })),
+    people: people.map((p) => ({ notes: '', ...local(p, lang), createdAt: created })),
+    meetings: meetings.map((m) => ({ ...local(m, lang), createdAt: created })),
+    tasks: tasks.map((t) => ({ ...local(t, lang), createdAt: created })),
+    knowledge: knowledge.map((k) => ({ ...local(k, lang), createdAt: created })),
+    emails: emails.map((e) => local(e, lang)),
   }
 }

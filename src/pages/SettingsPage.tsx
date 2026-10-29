@@ -75,7 +75,7 @@ export function SettingsPage() {
                 }}
                 aria-label={t('settings.openaiKey')}
               />
-              <button className="btn icon" type="button" onClick={() => setShow((s) => !s)} aria-label={show ? 'Hide' : 'Show'}>
+              <button className="btn icon" type="button" onClick={() => setShow((s) => !s)} aria-label={t(show ? 'common.hide' : 'common.show')}>
                 {show ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
               <button className="btn primary" type="submit" disabled={!draft.trim()}>
@@ -132,7 +132,7 @@ export function SettingsPage() {
           <span className="muted small">{!vault.persistent ? t('settings.keySession') : (vault.hasKey && !editing ? vault.mode : mode) === 'session' ? t('settings.keySessionStored') : t('settings.keyStored')}</span>
         </Field>
       </div>
-      <Section title="Demo">
+      <Section title={t('settings.demo')}>
         <button
           className="btn danger"
           onClick={() => {

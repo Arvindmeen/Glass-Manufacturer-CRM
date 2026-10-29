@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type Re
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ChevronLeft, Search, X } from 'lucide-react'
 import { haptic } from '../lib/haptic'
+import { useT } from '../i18n'
 
 /**
  * Page title row. `fabs` are the page's main actions: inline in the header on desktop,
@@ -19,10 +20,11 @@ export function PageHead({
   fabs?: ReactNode
 }) {
   const navigate = useNavigate()
+  const t = useT()
   return (
     <div className="page-head">
       {back && (
-        <button className="btn ghost icon back" onClick={() => navigate(-1)} aria-label="Back">
+        <button className="btn ghost icon back" onClick={() => navigate(-1)} aria-label={t('common.back')}>
           <ChevronLeft size={22} />
         </button>
       )}
@@ -84,6 +86,7 @@ export function Sheet({
   height?: string
   bodyRef?: React.Ref<HTMLDivElement>
 }) {
+  const t = useT()
   const [phone] = useState(isPhone)
   const [full, setFull] = useState(false)
   const el = useRef<HTMLDivElement>(null)
@@ -203,13 +206,13 @@ export function Sheet({
               className="sheet-grip"
               role="button"
               tabIndex={0}
-              aria-label={full ? 'Collapse' : 'Expand'}
+              aria-label={t(full ? 'common.collapse' : 'common.expand')}
               onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleFull()}
             />
           )}
           <div className="sheet-head">
             <h2>{title}</h2>
-            <button className="btn ghost icon" onClick={onClose} aria-label="Close">
+            <button className="btn ghost icon" onClick={onClose} aria-label={t('common.close')}>
               <X size={20} />
             </button>
           </div>

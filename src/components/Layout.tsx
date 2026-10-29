@@ -13,7 +13,8 @@ import {
   Landmark,
 } from 'lucide-react'
 import { useT, type TKey } from '../i18n'
-import { STORAGE_FULL, useDB } from '../store/db'
+import { localizeDemoData, STORAGE_FULL, useDB } from '../store/db'
+import { useSettings } from '../store/settings'
 import { Sheet, toast, Toaster, useClosing } from './ui'
 import { ChatSheet, onOpenChat } from './AskChat'
 import { VoiceCommand } from './VoiceCommand'
@@ -41,6 +42,9 @@ export function Layout() {
   const [voiceOpen, setVoiceOpen] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
   useEffect(() => onOpenChat(() => setChatOpen(true)), [])
+  // Demo records follow the selected language (the user's own entries are never changed).
+  const { lang } = useSettings()
+  useEffect(() => localizeDemoData(lang), [lang])
   const [moreOpen, setMoreOpen] = useState(false)
   const { pathname } = useLocation()
   const moreActive = secondary.some((n) => pathname.startsWith(n.to))

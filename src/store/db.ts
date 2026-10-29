@@ -1,7 +1,8 @@
 import { useSyncExternalStore } from 'react'
 import type { Company, DB, Email, ID, KnowledgeEntry, Meeting, Person, Task } from '../types'
 import { todayISO } from '../lib/format'
-import { seed } from './seed'
+import { seed, seedTexts, type SeedText } from './seed'
+import type { Lang } from './settings'
 
 const KEY = 'glasscrm:db:v1'
 const REV_KEY = 'glasscrm:db:rev'
@@ -280,6 +281,51 @@ export function linkPersonCompany(personId: ID, companyId: ID, linked: boolean) 
   if (linked) ids.add(companyId)
   else ids.delete(companyId)
   savePerson({ ...p, companyIds: [...ids] })
+}
+
+/**
+ * The demo data exists in English and German. Switch every demo text the user has not changed to
+ * the selected language; anything the user typed or edited stays exactly as it is.
+ */
+export function localizeDemoData(lang: Lang) {
+  const texts = seedTexts()
+  const other: Lang = lang === 'de' ? 'en' : 'de'
+  const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
+  type Step = { text: string; image?: string }
+  let changed = false
+  const fix = <T extends { id: string }>(record: T): T => {
+    const tx = texts[record.id]
+    if (!tx) return record
+    const r = record as unknown as Record<string, unknown>
+    let next: Record<string, unknown> | null = null
+    for (const [k, target] of Object.entries(tx[lang]) as [string, SeedText[string]][]) {
+      const from = tx[other][k]
+      const cur = r[k]
+      if (k === 'steps' && Array.isArray(cur) && Array.isArray(from) && Array.isArray(target)) {
+        // Per step, so photos the user added stay on their step.
+        const steps = (cur as Step[]).map((st, i) => {
+          const f = from[i] as Step | undefined
+          const to = target[i] as Step | undefined
+          return f && to && st.text === f.text ? { ...st, text: to.text, ...(st.image === f.image ? { image: to.image } : {}) } : st
+        })
+        if (!same(steps, cur)) (next ??= { ...r }).steps = steps
+      } else if (same(cur, from) && !same(cur, target)) {
+        ;(next ??= { ...r })[k] = target
+      }
+    }
+    if (!next) return record
+    changed = true
+    return next as unknown as T
+  }
+  const next: DB = {
+    companies: state.companies.map(fix),
+    people: state.people.map(fix),
+    meetings: state.meetings.map(fix),
+    tasks: state.tasks.map(fix),
+    knowledge: state.knowledge.map(fix),
+    emails: state.emails.map(fix),
+  }
+  if (changed) commit(next)
 }
 
 export function resetDemoData() {

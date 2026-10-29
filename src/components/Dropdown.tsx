@@ -23,6 +23,7 @@ function Panel({
   width?: number
   closing?: boolean
 }) {
+  const t = useT()
   const panel = useRef<HTMLDivElement>(null)
   const dragY = useRef<number | null>(null)
 
@@ -112,7 +113,7 @@ function Panel({
             <div className="picker-grip" />
             <div className="picker-title">
             <span>{title}</span>
-              <button className="btn ghost icon" onClick={onClose} aria-label="Close">
+              <button className="btn ghost icon" onClick={onClose} aria-label={t('common.close')}>
                 <X size={20} />
               </button>
             </div>
@@ -357,11 +358,11 @@ export function DatePicker({
               </div>
             )}
             <div className="cal-head">
-              <button type="button" className="btn ghost icon" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))} aria-label="Previous month">
+              <button type="button" className="btn ghost icon" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))} aria-label={t('common.prevMonth')}>
                 <ChevronLeft size={20} />
               </button>
               <span>{month.toLocaleDateString(locale, { month: 'long', year: 'numeric' })}</span>
-              <button type="button" className="btn ghost icon" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))} aria-label="Next month">
+              <button type="button" className="btn ghost icon" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))} aria-label={t('common.nextMonth')}>
                 <ChevronRight size={20} />
               </button>
             </div>

@@ -57,13 +57,43 @@ const CANTONS: Record<Lang, Record<(typeof REGIONS)[number], string>> = {
   de: { BE: 'Bern', SO: 'Solothurn', FR: 'Freiburg', LU: 'Luzern', ZH: 'Zürich', AG: 'Aargau' },
 }
 const TYPES: LeadType[] = ['carpentry', 'architecture', 'plumbing', 'windows', 'interior']
-const INDUSTRY: Record<LeadType, string> = {
-  carpentry: 'Carpentry',
-  architecture: 'Architecture',
-  plumbing: 'Plumbing',
-  windows: 'Window maker',
-  interior: 'Interior fit-out',
+const INDUSTRY: Record<Lang, Record<LeadType, string>> = {
+  en: { carpentry: 'Carpentry', architecture: 'Architecture', plumbing: 'Plumbing', windows: 'Window maker', interior: 'Interior fit-out' },
+  de: { carpentry: 'Schreinerei', architecture: 'Architektur', plumbing: 'Sanitär', windows: 'Fensterbau', interior: 'Innenausbau' },
 }
+/** German labels for the sample signals (the English text is the key). */
+const SIGNALS_DE: Record<string, string> = {
+  'Aluminium systems': 'Aluminiumsysteme',
+  'Bathroom renovation': 'Badsanierung',
+  'Chalets': 'Chalets',
+  'Display cabinets': 'Vitrinen',
+  'Facades': 'Fassaden',
+  'Frameless showers': 'Rahmenlose Duschen',
+  'Furniture glazing': 'Möbelverglasung',
+  'Glass doors': 'Glastüren',
+  'Glass partitions': 'Glastrennwände',
+  'Glass splashbacks': 'Glasrückwände',
+  'Hotels': 'Hotels',
+  'Housing cooperatives': 'Wohnbaugenossenschaften',
+  'Interior doors': 'Innentüren',
+  'Kitchens': 'Küchen',
+  'Large glazing': 'Grossverglasungen',
+  'Large projects': 'Grossprojekte',
+  'Mirrors': 'Spiegel',
+  'Office interiors': 'Büroausbau',
+  'Offices': 'Büros',
+  'Partitions': 'Trennwände',
+  'Public buildings': 'Öffentliche Bauten',
+  'Renovation': 'Sanierung',
+  'Renovations': 'Renovationen',
+  'Residential': 'Wohnbau',
+  'Shop fitting': 'Ladenbau',
+  'Showers': 'Duschen',
+  'Triple glazing': 'Dreifachverglasung',
+  'Wellness': 'Wellness',
+  'Wood-aluminium': 'Holz-Aluminium',
+}
+const signal = (s: string, lang: Lang) => (lang === 'de' ? (SIGNALS_DE[s] ?? s) : s)
 
 type Phase = 'idle' | 'register' | 'websites' | 'done'
 
@@ -100,12 +130,12 @@ export function LeadsPage() {
     saveCompany(
       blankCompany({
         name: l.name,
-        industry: INDUSTRY[l.type],
+        industry: INDUSTRY[lang][l.type],
         street: l.street,
         zip: l.zip,
         city: l.city,
         website: l.website,
-        notes: `Lead · ${t('leads.source')} ${l.uid} · ${l.signals.join(', ')}`,
+        notes: `Lead · ${t('leads.source')} ${l.uid} · ${l.signals.map((x) => signal(x, lang)).join(', ')}`,
       }),
     )
     toast(t('leads.added'))
@@ -178,7 +208,7 @@ export function LeadsPage() {
                       </span>
                       {l.signals.map((s) => (
                         <span key={s} className="chip">
-                          {s}
+                          {signal(s, lang)}
                         </span>
                       ))}
                     </div>
