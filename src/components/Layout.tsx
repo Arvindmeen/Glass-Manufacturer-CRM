@@ -53,8 +53,7 @@ export function Layout() {
     firstLang.current = lang
     void translateUserData(lang).then((r) => {
       if (!switched) return
-      if (r === 'done') toast(t('settings.translated'))
-      else if (r === 'no-key') toast(t('settings.translateNeedsKey'))
+      if (r === 'no-key') toast(t('settings.translateNeedsKey'))
       else if (r === 'failed') toast(t('settings.translateFailed'))
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps

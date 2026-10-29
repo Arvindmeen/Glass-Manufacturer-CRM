@@ -195,7 +195,6 @@ export const de: Record<TKey, string> = {
   'settings.keyDevice': 'Auf diesem Gerät merken',
   'settings.keySessionOnly': 'Bis ich den Browser schliesse',
   'settings.keySessionStored': 'Verschlüsselt, wird beim Schliessen des Browsers gelöscht. Nur an OpenAI gesendet.',
-  'settings.translated': 'Ihre Einträge wurden übersetzt',
   'settings.translateNeedsKey': 'Für die Übersetzung eigener Einträge einen OpenAI-Schlüssel hinterlegen',
   'settings.translateFailed': 'Einige Einträge konnten nicht übersetzt werden. Später erneut versuchen.',
   'settings.keyStored': 'Verschlüsselt auf diesem Gerät. Nur an OpenAI gesendet.',
