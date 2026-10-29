@@ -8,6 +8,7 @@ import { currentPosition, googleMapsRoute, haversine, planRoute, type Point } fr
 import { useDB } from '../store/db'
 import type { Company } from '../types'
 import { CompanyForm } from '../components/forms'
+import { AskButton } from '../components/AskChat'
 import { Avatar, PageHead, SearchInput, useSearchQuery } from '../components/ui'
 import { flash, useRecent } from '../lib/recent'
 
@@ -83,9 +84,12 @@ export function CompaniesPage() {
         title={t('nav.companies')}
         fabs={
           view === 'list' && (
-            <button className="btn primary icon fab-main" onClick={() => setCreating(true)} aria-label={t('company.new')}>
-              <Plus size={22} />
-            </button>
+            <>
+              <AskButton />
+              <button className="btn primary icon fab-main" onClick={() => setCreating(true)} aria-label={t('company.new')}>
+                <Plus size={22} />
+              </button>
+            </>
           )
         }
       >

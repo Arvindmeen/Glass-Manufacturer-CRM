@@ -5,6 +5,7 @@ import { saveTask, useDB } from '../store/db'
 import type { Task, TaskStatus } from '../types'
 import { TaskForm } from '../components/forms'
 import { TaskCard } from '../components/related'
+import { AskButton } from '../components/AskChat'
 import { PageHead } from '../components/ui'
 
 const columns: TaskStatus[] = ['planned', 'in_progress', 'done']
@@ -28,9 +29,12 @@ export function TasksPage() {
       <PageHead
         title={t('task.title')}
         fabs={
-          <button className="btn primary icon fab-main" onClick={() => setEditing('new')} aria-label={t('task.new')}>
-            <Plus size={22} />
-          </button>
+          <>
+            <AskButton />
+            <button className="btn primary icon fab-main" onClick={() => setEditing('new')} aria-label={t('task.new')}>
+              <Plus size={22} />
+            </button>
+          </>
         }
       />
 

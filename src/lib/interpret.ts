@@ -106,7 +106,7 @@ export function findPerson(db: DB, firstName: string, lastName: string): Person 
 }
 
 /** Edit distance, for typos in transcribed names ("Hubr", "Meyer"). */
-function distance(a: string, b: string) {
+export function distance(a: string, b: string) {
   const row = Array.from({ length: b.length + 1 }, (_, i) => i)
   for (let i = 1; i <= a.length; i++) {
     let prev = row[0]
@@ -119,7 +119,7 @@ function distance(a: string, b: string) {
   }
   return row[b.length]
 }
-const close = (a: string, b: string) => a.length > 3 && b.length > 3 && distance(a, b) <= Math.max(1, Math.floor(Math.min(a.length, b.length) / 5))
+export const isClose = (a: string, b: string) => a.length > 3 && b.length > 3 && distance(a, b) <= Math.max(1, Math.floor(Math.min(a.length, b.length) / 5))
 
 /**
  * Existing companies that might be meant but did not match confidently.
@@ -134,7 +134,7 @@ export function similarCompanies(db: DB, name: string, city = ''): Company[] {
   return db.companies
     .filter((c) => {
       const theirs = words(c.name).filter((w) => (freq.get(w) ?? 0) < 2)
-      return close(k, companyKey(c.name)) || mine.some((w) => theirs.some((x) => x === w || close(x, w)))
+      return isClose(k, companyKey(c.name)) || mine.some((w) => theirs.some((x) => x === w || isClose(x, w)))
     })
     .sort((a, b) => Number(normalize(b.city) === normalize(city)) - Number(normalize(a.city) === normalize(city)))
     .slice(0, 3)
@@ -149,9 +149,9 @@ export function similarPeople(db: DB, firstName: string, lastName: string, compa
       const pl = normalize(p.lastName)
       const sameCompany = p.companyIds.some((c) => companyIds.includes(c))
       return (
-        (l && (pl === l || close(pl, l)) && (!f || pf === f || close(pf, f) || sameCompany)) ||
+        (l && (pl === l || isClose(pl, l)) && (!f || pf === f || isClose(pf, f) || sameCompany)) ||
         (!l && f && pf === f && sameCompany) ||
-        (f && pf === f && l && close(pl, l))
+        (f && pf === f && l && isClose(pl, l))
       )
     })
     .slice(0, 3)

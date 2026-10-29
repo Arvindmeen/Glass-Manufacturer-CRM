@@ -5,6 +5,7 @@ import { useT } from '../i18n'
 import { matches } from '../lib/format'
 import { fullName, useDB } from '../store/db'
 import { PersonForm } from '../components/forms'
+import { AskButton } from '../components/AskChat'
 import { Avatar, PageHead, SearchInput, useSearchQuery } from '../components/ui'
 import { flash, useRecent } from '../lib/recent'
 
@@ -28,9 +29,12 @@ export function PeoplePage() {
       <PageHead
         title={t('nav.people')}
         fabs={
-          <button className="btn primary icon fab-main" onClick={() => setCreating(true)} aria-label={t('person.new')}>
-            <Plus size={22} />
-          </button>
+          <>
+            <AskButton />
+            <button className="btn primary icon fab-main" onClick={() => setCreating(true)} aria-label={t('person.new')}>
+              <Plus size={22} />
+            </button>
+          </>
         }
       />
       <SearchInput value={q} onChange={setQ} placeholder={t('common.search')} />
