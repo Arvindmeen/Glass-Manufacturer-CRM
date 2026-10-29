@@ -178,15 +178,9 @@ export function CompaniesPage() {
                   className="btn primary lg grow"
                   href={tripUrl}
                   target="_blank"
-                  rel="noreferrer"
-                  onClick={(e) => {
-                    // Always a new tab (or the Maps app on phones); the button then moves on to the next part.
-                    e.preventDefault()
-                    const tab = window.open(tripUrl, '_blank')
-                    if (tab) tab.opener = null
-                    else window.location.assign(tripUrl)
-                    setTrip((x) => Math.min(x + 1, trips.length - 1))
-                  }}
+                  rel="noopener noreferrer"
+                  // The browser opens a new tab (the Maps app on phones); the button then moves on to the next part.
+                  onClick={() => setTrip((x) => Math.min(x + 1, trips.length - 1))}
                 >
                   <Navigation size={18} /> {t('company.openRoute')}
                   {trips.length > 1 && ` ${tripNow + 1}/${trips.length}`}
