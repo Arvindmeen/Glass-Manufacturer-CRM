@@ -328,6 +328,62 @@ export function localizeDemoData(lang: Lang) {
   if (changed) commit(next)
 }
 
+/* ---------- text fields that follow the app language ---------- */
+
+type Step = { text: string; image?: string }
+const TEXT_FIELDS: Record<keyof DB, string[]> = {
+  companies: ['industry', 'notes'],
+  people: ['role', 'notes'],
+  meetings: ['title', 'summary'],
+  tasks: ['title'],
+  knowledge: ['title', 'product', 'summary', 'tags', 'steps'],
+  emails: ['subject', 'body'],
+}
+
+/** Every translatable string in the data (tags and step texts/captions one by one). */
+export function allTexts(db: DB = state): string[] {
+  const out: string[] = []
+  for (const col of Object.keys(TEXT_FIELDS) as (keyof DB)[])
+    for (const r of db[col] as unknown as Record<string, unknown>[])
+      for (const k of TEXT_FIELDS[col]) {
+        const v = r[k]
+        if (typeof v === 'string') out.push(v)
+        else if (k === 'tags' && Array.isArray(v)) out.push(...(v as string[]))
+        else if (k === 'steps' && Array.isArray(v)) (v as Step[]).forEach((st) => out.push(st.text, st.image ?? ''))
+      }
+  return out.filter((x) => x.trim())
+}
+
+/** Replace texts through `map` (undefined = keep); one commit for all changes. Returns how many changed. */
+export function mapTexts(map: (text: string) => string | undefined): number {
+  let changed = 0
+  const tr = (v: string) => {
+    const next = v.trim() ? map(v) : undefined
+    if (next === undefined || next === v) return v
+    changed++
+    return next
+  }
+  const next = Object.fromEntries(
+    (Object.keys(TEXT_FIELDS) as (keyof DB)[]).map((col) => [
+      col,
+      (state[col] as unknown as Record<string, unknown>[]).map((r) => {
+        let out: Record<string, unknown> | null = null
+        for (const k of TEXT_FIELDS[col]) {
+          const v = r[k]
+          let nv: unknown = v
+          if (typeof v === 'string') nv = tr(v)
+          else if (k === 'tags' && Array.isArray(v)) nv = (v as string[]).map(tr)
+          else if (k === 'steps' && Array.isArray(v)) nv = (v as Step[]).map((st) => ({ ...st, text: tr(st.text), ...(st.image ? { image: tr(st.image) } : {}) }))
+          if (JSON.stringify(nv) !== JSON.stringify(v)) (out ??= { ...r })[k] = nv
+        }
+        return out ?? r
+      }),
+    ]),
+  ) as unknown as DB
+  if (changed) commit(next)
+  return changed
+}
+
 export function resetDemoData() {
   commit(seed())
 }

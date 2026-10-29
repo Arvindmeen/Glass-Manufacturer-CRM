@@ -206,6 +206,9 @@ export const en = {
   'settings.keyDevice': 'Remember on this device',
   'settings.keySessionOnly': 'Until I close the browser',
   'settings.keySessionStored': 'Encrypted, deleted when you close the browser. Only sent to OpenAI.',
+  'settings.translated': 'Your entries were translated',
+  'settings.translateNeedsKey': 'Add an OpenAI key to translate your own entries too',
+  'settings.translateFailed': 'Some entries could not be translated. Try again later.',
   'settings.keyStored': 'Encrypted on this device. Only sent to OpenAI.',
 }
 

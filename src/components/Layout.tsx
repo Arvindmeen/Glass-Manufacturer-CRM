@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import {
   BookOpen,
@@ -15,6 +15,7 @@ import {
 import { useT, type TKey } from '../i18n'
 import { localizeDemoData, STORAGE_FULL, useDB } from '../store/db'
 import { useSettings } from '../store/settings'
+import { translateUserData } from '../lib/translateData'
 import { Sheet, toast, Toaster, useClosing } from './ui'
 import { ChatSheet, onOpenChat } from './AskChat'
 import { VoiceCommand } from './VoiceCommand'
@@ -42,9 +43,22 @@ export function Layout() {
   const [voiceOpen, setVoiceOpen] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
   useEffect(() => onOpenChat(() => setChatOpen(true)), [])
-  // Demo records follow the selected language (the user's own entries are never changed).
+  // All records follow the selected language.
   const { lang } = useSettings()
-  useEffect(() => localizeDemoData(lang), [lang])
+  const firstLang = useRef(lang)
+  useEffect(() => {
+    // Demo records switch from built-in texts; the user's own entries are translated by the AI.
+    localizeDemoData(lang)
+    const switched = firstLang.current !== lang
+    firstLang.current = lang
+    void translateUserData(lang).then((r) => {
+      if (!switched) return
+      if (r === 'done') toast(t('settings.translated'))
+      else if (r === 'no-key') toast(t('settings.translateNeedsKey'))
+      else if (r === 'failed') toast(t('settings.translateFailed'))
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lang])
   const [moreOpen, setMoreOpen] = useState(false)
   const { pathname } = useLocation()
   const moreActive = secondary.some((n) => pathname.startsWith(n.to))

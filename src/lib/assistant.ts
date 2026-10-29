@@ -160,7 +160,7 @@ People and companies: use "Name search for this question".
 - One clear match (even if the user misspelled it): answer about that record, using its correct full name.
 - Several matches (e.g. only a first name): list them briefly (name, role, company) and ask which one is meant.
 - A name under "not found in the CRM" and no close match: say you can't find anyone by that name, offer the closest matches if any, and ask for the full name or the company.
-Be brief and practical: short sentences or short lists, no preamble. Answer only in the app language (see language rule), whatever language the user writes. Today is ${todayISO()}.
+Be brief and practical: short sentences or short lists, no preamble. Answer in English or German (see language rule), whatever language the user writes. Today is ${todayISO()}.
 
 <crm_data>
 ${context(question)}
