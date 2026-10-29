@@ -105,11 +105,12 @@ export function planRoute(points: Point[], start?: Point) {
 }
 
 /**
- * Google Maps directions take up to 10 points (origin, 8 waypoints, destination); the keyless
- * map preview only draws short routes. Longer routes are split into parts, each starting where the last ended.
+ * Google Maps directions take up to 11 points (origin, 9 waypoints, destination); longer plans are
+ * split into parts, each starting where the last ended. The keyless map preview ignores extra
+ * "to:" stops, so it shows the route one drive (stop to stop) at a time.
  */
-export const TRIP_POINTS = 10
-export const PREVIEW_POINTS = 5
+export const TRIP_POINTS = 11
+export const PREVIEW_POINTS = 2
 
 export function splitLegs<T>(points: T[], size: number): T[][] {
   if (points.length <= size) return [points]

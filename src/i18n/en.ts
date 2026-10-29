@@ -61,7 +61,6 @@ export const en = {
   'company.list': 'List',
   'company.planRoute': 'Plan route',
   'company.selected': '{n} selected',
-  'company.stops': 'Stops {a}–{b}',
   'company.openRoute': 'Open in Google Maps',
   'company.linkPerson': 'Link person',
   'person.linkCompany': 'Link company',

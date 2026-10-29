@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Check, ChevronRight, Loader2, Navigation, Plus, Route } from 'lucide-react'
+import { Check, ChevronRight, Loader2, LocateFixed, Navigation, Plus, Route } from 'lucide-react'
 import { useT } from '../i18n'
 import { matches } from '../lib/format'
 import { addressOf, embedArea, embedPlace, embedRoute, locate, routePoint } from '../lib/geo'
@@ -83,7 +83,7 @@ export function CompaniesPage() {
         ...route.stops.map((c, i) => ({ n: i + 1, map: addressOf(c), nav: routePoint(c) })),
       ]
     : []
-  // The map box previews one short part at a time; Google Maps gets the whole plan (or parts of 10 points).
+  // The map box shows one drive at a time; Google Maps gets the whole plan (or parts of 10 points).
   const legs = splitLegs(points, PREVIEW_POINTS)
   const active = legs[Math.min(leg, legs.length - 1)] ?? []
   const inLeg = (n: number) => legs.length < 2 || (n >= active[0].n && n <= active[active.length - 1].n)
@@ -152,7 +152,7 @@ export function CompaniesPage() {
                 <div className="chip-scroll">
                   {legs.map((l, i) => (
                     <button key={i} type="button" className={`chip leg${i === leg ? ' primary' : ''}`} onClick={() => setLeg(i)}>
-                      {t('company.stops', { a: Math.max(l[0].n, 1), b: l[l.length - 1].n })}
+                      {l[0].n === 0 ? <LocateFixed size={14} /> : l[0].n} → {l[l.length - 1].n}
                     </button>
                   ))}
                 </div>
