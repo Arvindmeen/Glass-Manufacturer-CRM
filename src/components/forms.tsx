@@ -86,7 +86,9 @@ export function CompanyForm({
         className="form"
         onSubmit={(e) => {
           e.preventDefault()
-          onSaved?.(saveCompany({ ...d, name: d.name.trim() }))
+          // Save first: `onSaved?.(saveCompany(…))` would skip the save when no onSaved is passed (edit from the company page).
+          const saved = saveCompany({ ...d, name: d.name.trim() })
+          onSaved?.(saved)
           close()
         }}
       >
@@ -176,7 +178,8 @@ export function PersonForm({
         className="form"
         onSubmit={(e) => {
           e.preventDefault()
-          onSaved?.(savePerson(d))
+          const saved = savePerson(d)
+          onSaved?.(saved)
           close()
         }}
       >

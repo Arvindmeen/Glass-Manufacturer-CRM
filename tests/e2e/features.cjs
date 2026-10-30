@@ -62,6 +62,17 @@ const ROUTES = ['/companies', '/companies?view=map', '/companies/c1', '/people',
   rec('F-05 person page shows linked companies (many-to-many seed: Julia Frey has 2)', (await (async () => { await p.goto(BASE + '/people/p6'); await p.waitForTimeout(300); return (await p.locator('body').innerText()).includes('Bader Architekten') && (await p.locator('body').innerText()).includes('Frei & Partner') })()))
   void anna
 
+  // ---------- edit with the pencil on the record page (regression: edits were silently dropped)
+  for (const [path, field, label] of [['/companies/c2', 1, 'company'], ['/people/p3', 2, 'person']]) {
+    await p.goto(BASE + path); await p.waitForTimeout(300)
+    await p.locator('[aria-label="Edit"]').first().click(); await p.waitForTimeout(300)
+    await p.locator('.sheet input.input').nth(field).fill('Pencil edit ' + label)
+    await p.locator('.sheet-foot button', { hasText: /Save/ }).click(); await p.waitForTimeout(400)
+    const shown = (await p.locator('body').innerText()).includes('Pencil edit ' + label)
+    await p.reload(); await p.waitForTimeout(400)
+    rec(`F-32 ${label} edited with the pencil is updated on the page and after reload`, shown && (await p.locator('body').innerText()).includes('Pencil edit ' + label))
+  }
+
   // ---------- tasks: status change persists, done stays done
   await p.goto(BASE + '/tasks'); await p.waitForTimeout(300)
   const first = p.locator('.column.current .task').first()
