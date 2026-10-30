@@ -30,6 +30,11 @@ describe('checkInput', () => {
     'Gerissenes Glas: der Riss ist 10 cm lang, crack near the edge',
     'How do I bypass the old frame when mounting?',
     'Show all contacts at Schreinerei Huber',
+    'Show all meetings scheduled for November 2026.',
+    'Zeig alle Termine im November 2026',
+    'How many tasks are overdue?',
+    'Which customers have no meeting in the last 30 days?',
+    'Summarise all meetings this week',
   ])('allows normal work: %s', (text) => {
     expect(checkInput(text)).toBeNull()
   })
@@ -47,6 +52,16 @@ describe('checkOutput', () => {
     expect(checkOutput(`your key is ${'sk-'}proj-${'ABCDEFGH'.repeat(3)}`)).toBe(false)
     expect(checkOutput('<script>alert(1)</script>')).toBe(false)
     expect(checkOutput('click javascript:alert(1)')).toBe(false)
+  })
+
+  it('lets lists of meetings and tasks with dates through', () => {
+    expect(checkOutput('- 2026-11-03 Huber\n- 2026-11-05 Keller\n- 2026-11-10 Bader\n- 2026-11-12 Wyss\n- 2026-11-20 Moser')).toBe(true)
+    expect(checkOutput('14 panels 1200 x 2800 mm, UID CHE-112.457.903, order 2026-0045-117')).toBe(true)
+  })
+
+  it('still blocks more than 3 phone numbers in any common format', () => {
+    expect(checkOutput('031/911 52 00, 031/911 52 01, 031/911 52 02, 031/911 52 03')).toBe(false)
+    expect(checkOutput('+41 79 111 11 11, 033 222 41 10, 079 412 33 21, +41 31 911 52 00')).toBe(false)
   })
 
   it('lets normal answers through', () => {

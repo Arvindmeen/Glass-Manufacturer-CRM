@@ -155,6 +155,24 @@ const ROUTES = ['/companies', '/companies?view=map', '/companies/c1', '/people',
   rec('F-18 rate limit stops runaway AI use (≤ 20 requests / minute)', limited && aiCalls - before <= 20, `calls=${aiCalls - before}`)
   await p.keyboard.press('Escape'); await p.waitForTimeout(300)
 
+  // ---------- manager overviews: lists with dates are answered, not blocked
+  await p.waitForTimeout(61000)
+  const nov = 'Meetings in November 2026:\n- 2026-11-03 Huber: shower panels\n- 2026-11-05 Keller: pricing\n- 2026-11-10 Bader: facade\n- 2026-11-12 Wyss: chalet'
+  reply = nov
+  await p.goto(BASE + '/tasks'); await p.waitForTimeout(200)
+  await p.locator('.fab-alt').first().click(); await p.waitForTimeout(300)
+  await p.fill('.chat-input input', 'Show all meetings scheduled for November 2026.')
+  await p.click('.chat-input button[type=submit]'); await p.waitForTimeout(1200)
+  const chatAns = await p.locator('.bubble.assistant').last().innerText()
+  rec('F-33 chat answers a manager overview (meeting list with dates)', chatAns.includes('2026-11-12 Wyss') && !chatAns.startsWith('⚠'), chatAns.slice(0, 80))
+  await p.keyboard.press('Escape'); await p.waitForTimeout(300)
+  reply = { answer: nov, actions: [] }
+  await speak('/tasks', 'Show all meetings scheduled for November 2026.')
+  await p.waitForTimeout(1500)
+  const voiceAns = await p.locator('body').innerText()
+  rec('F-34 voice assistant answers the same overview', voiceAns.includes('2026-11-12 Wyss') && !/only help with work/.test(voiceAns), voiceAns.replace(/\s+/g, ' ').slice(0, 100))
+  await p.keyboard.press('Escape'); await p.waitForTimeout(400)
+
   // ---------- knowledge search
   await p.goto(BASE + '/knowledge'); await p.waitForTimeout(200)
   await p.fill('input[type=search]', 'shower')

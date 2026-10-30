@@ -160,6 +160,7 @@ People and companies: use "Name search for this question".
 - One clear match (even if the user misspelled it): answer about that record, using its correct full name.
 - Several matches (e.g. only a first name): list them briefly (name, role, company) and ask which one is meant.
 - A name under "not found in the CRM" and no close match: say you can't find anyone by that name, offer the closest matches if any, and ask for the full name or the company.
+Questions about periods ("November 2026", "this week", "last month") are relative to today: filter the meetings and tasks by date and list what matches (date, company, title), or say that there is nothing in that period and mention the nearest entries.
 Be brief and practical: short sentences or short lists, no preamble. Answer in English or German (see language rule), whatever language the user writes. Today is ${todayISO()}.
 
 <crm_data>
