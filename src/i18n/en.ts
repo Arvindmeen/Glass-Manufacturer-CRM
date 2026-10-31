@@ -6,7 +6,7 @@ export const en = {
   'nav.knowledge': 'Knowledge',
   'nav.inbox': 'Inbox',
   'nav.leads': 'Lead search',
-  'nav.simap': 'simap Bot',
+  'nav.simap': 'Simap Bot',
   'nav.settings': 'Settings',
   'nav.more': 'More',
 

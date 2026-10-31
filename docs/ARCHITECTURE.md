@@ -65,7 +65,7 @@ A mobile-first CRM for a sales rep who is on the road all day. The core idea: **
 | 5 Inbox mockup: extract quote, confirm, transfer to ERP | ✅ "Transfer to Safir" (ERP name confirmed by the client) |
 | 6 Map and route planning in Google Maps | ✅ |
 | 7 Lead search mockup | ✅ Static results |
-| 8 simap Bot tab | ✅ Empty |
+| 8 Simap Bot tab | ✅ Empty |
 | Prototype protection | ✅ Site password gate (`GateSecurityEngine`) with ECMAScript `#` private fields, 7h session, browser isolation, rate limiting |
 
 ## A2. Assumptions
@@ -1059,9 +1059,9 @@ flowchart TB
 - **Sources:** Zefix (official, free, company name, UID, seat, purpose) is the source of truth. Websites are checked by the worker in batches, never during the user's request. Results are cached for 30 days.
 - **Data protection:** only company data is collected, no personal data beyond what the register publishes.
 
-### B8.5 simap Bot (later)
+### B8.5 Simap Bot (later)
 
-A scheduled worker job reads new public tenders from simap.ch (interface or notification feed to be confirmed). It filters them by CPV codes and keywords for glass and facades, and lists matches in the simap tab. It is not part of the first release.
+A scheduled worker job reads new public tenders from simap.ch (interface or notification feed to be confirmed). It filters them by CPV codes and keywords for glass and facades, and lists matches in the Simap tab. It is not part of the first release.
 
 ## B9. Hosting and operations
 
@@ -1200,7 +1200,7 @@ flowchart LR
         F5["M365/Gmail sync · Quote extraction<br/>Safir ERP adapter · Route geocoding"]
     end
     subgraph S6["6. Later Additions (4 wks)"]
-        F6["Zefix lead search · simap bot<br/>Offline recording PWA"]
+        F6["Zefix lead search · Simap bot<br/>Offline recording PWA"]
     end
     S1 --> S2 --> S3 --> S4 --> S5 --> S6
 
@@ -1232,7 +1232,7 @@ flowchart LR
 | 5 | Email sync and quote extraction | Saves office time; depends on mailbox access from the client |
 | 6 | Safir transfer | Depends on knowing Safir's interface |
 | 7 | Geocoding, server-side route optimisation | Small, improves an existing feature |
-| 8 | Lead search, simap bot, offline recording | Valuable but not needed on day one |
+| 8 | Lead search, Simap bot, offline recording | Valuable but not needed on day one |
 
 ## B13. Deliberately left out at this scale
 

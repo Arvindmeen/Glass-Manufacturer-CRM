@@ -87,7 +87,7 @@ Legend: ☐ = check this result.
 | 9 | Assistant, type in Hindi: *"मैं आज अन्ना मायर से मिला, उन्हें 12 शावर ग्लास पैनल चाहिए"*. | ☐ Understood; answer and meeting text are translated to **English** (or German if German is active). |
 | 10 | Ask: *"What is the phone number of Anna Meier?"* | ☐ Gives her number only (data minimisation; bulk harvesting blocked). |
 | 11 | Phone: deny microphone permission, tap the mic. Then remove the key and tap the mic. | ☐ "Microphone access denied." ☐ "Add your OpenAI key in Settings first." link appears. |
-| 12 | Open **simap Bot**. Switch language DE ↔ EN on several pages. **Reset demo data.** | ☐ simap Bot is an empty tab as required. All labels translate; reset demo data restores pristine state. |
+| 12 | Open **Simap Bot**. Switch language DE ↔ EN on several pages. **Reset demo data.** | ☐ Simap Bot is an empty tab as required. All labels translate; reset demo data restores pristine state. |
 
 ---
 
@@ -104,7 +104,7 @@ Legend: ☐ = check this result.
 | Chat assistant with CRM + knowledge context | 4, 5 |
 | Inbox: extraction, missing values, Safir transfer | 3 |
 | Map, route planning, Google Maps | 1 |
-| Lead search mockup, simap Bot | 3, 5 |
+| Lead search mockup, Simap Bot | 3, 5 |
 | DE / EN, browser language, other spoken languages | 2, 5 |
 | Mobile: bottom sheets, gestures, floating buttons, pickers | 1, 4, 5 |
 | Security: key vault, guard rails, data minimisation, anti-inspection | 5 |

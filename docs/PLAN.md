@@ -31,7 +31,7 @@ Guiding rule for every screen: show only what a sales rep on the road needs. No 
 - Email inbox mockup: quote requests → extract (customer, contact, products, quantities, dimensions; missing values flagged, never invented) → single-step "Transfer to Safir" (simulated ERP handoff).
 - Companies map + route planning: select stops → open-path optimization (nearest-neighbour + 2-opt + Or-opt) → directions link in Google Maps (split into 11-stop chunks).
 - Lead search mockup with realistic Canton Bern commercial register entries and website verification chips.
-- Empty "simap Bot" tab as specified in the brief.
+- Empty "Simap Bot" tab as specified in the brief.
 
 ## Phase 5 — Polish and hand-in ✅
 - Mobile pass: touch targets ≥ 44px, bottom sheets with drag-to-dismiss gestures, bottom navigation, one-handed reachability.

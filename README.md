@@ -85,7 +85,7 @@ Deploy: import the repo in Vercel (framework preset Vite). `vercel.json` adds th
 | Inbox mockup: quote extraction & single-step ERP transfer | ✅ Single-step "Transfer to Safir" (simulated handoff to the client's confirmed ERP) |
 | Map and route planning in Google Maps | ✅ Open-path traveling salesperson optimization with deep links to Google Maps navigation |
 | Lead search mockup | ✅ Realistic Canton Bern commercial register entries with website verification |
-| simap Bot tab | ✅ Clean empty tab ready for public procurement integration |
+| Simap Bot tab | ✅ Clean empty tab ready for public procurement integration |
 | Prototype protection | ✅ Encapsulated site password gate with 7-hour session, User-Agent binding, and anti-brute force |
 
 ---
@@ -324,7 +324,7 @@ Implemented in `src/lib/route.ts` as an **open-path traveling salesperson optimi
 ```
 src/
   pages/         one file per screen (Companies, Company, People, Person, Tasks,
-                 Inbox, Knowledge, Leads, simap, Settings)
+                 Inbox, Knowledge, Leads, Simap, Settings)
   components/    Layout, PasswordGate (encapsulated security engine),
                  VoiceCommand (central assistant), VoiceBar, VoiceRecorder,
                  AskChat, Dropdown, forms, pickers, sheets, related, StepImage

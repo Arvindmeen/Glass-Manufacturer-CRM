@@ -7,7 +7,7 @@ export const de: Record<TKey, string> = {
   'nav.knowledge': 'Wissen',
   'nav.inbox': 'Posteingang',
   'nav.leads': 'Lead-Suche',
-  'nav.simap': 'simap Bot',
+  'nav.simap': 'Simap Bot',
   'nav.settings': 'Einstellungen',
   'nav.more': 'Mehr',
 
