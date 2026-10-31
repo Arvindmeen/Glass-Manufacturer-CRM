@@ -28,7 +28,7 @@ Guiding rule for every screen: show only what a sales rep on the road needs. No 
 
 ## Phase 4 — Remaining modules ✅
 - Knowledge base: 4 sections (Installations, Products, Troubleshooting, Sales), product search, step-by-step tutorials with images/camera photos, voice-to-entry dictation with review, AI chat ("Ask") using CRM + knowledge as context.
-- Email inbox mockup: quote requests → extract (customer, contact, products, quantities, dimensions; missing values flagged, never invented) → confirm → "Transfer to Safir" (simulated ERP handoff).
+- Email inbox mockup: quote requests → extract (customer, contact, products, quantities, dimensions; missing values flagged, never invented) → single-step "Transfer to Safir" (simulated ERP handoff).
 - Companies map + route planning: select stops → open-path optimization (nearest-neighbour + 2-opt + Or-opt) → directions link in Google Maps (split into 11-stop chunks).
 - Lead search mockup with realistic Canton Bern commercial register entries and website verification chips.
 - Empty "simap Bot" tab as specified in the brief.

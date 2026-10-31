@@ -420,6 +420,29 @@ h3 { font-size: 0.95rem; }
   .quote-item .btn { grid-column: 4; }
 }
 
+.quote-editor-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+@media (max-width: 500px) {
+  .quote-editor-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+  .quote-editor-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .quote-editor-actions .btn.primary {
+    min-height: 48px;
+    font-size: 1rem;
+  }
+}
+
 /* ---------- knowledge ---------- */
 .steps { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
 .steps li { overflow: hidden; }

@@ -131,10 +131,16 @@ function EmailView({ email }: { email: Email }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoExtract])
 
-  const transfer = () => {
+  const transfer = (quoteToSave?: QuoteRequest) => {
     setBusy('transfer')
     window.setTimeout(() => {
-      saveEmail({ ...getDB().emails.find((e) => e.id === email.id)!, transferredAt: new Date().toISOString() })
+      const current = getDB().emails.find((e) => e.id === email.id)!
+      saveEmail({
+        ...current,
+        quote: quoteToSave ?? draft ?? current.quote,
+        transferredAt: new Date().toISOString(),
+      })
+      setDraft(null)
       setBusy(null)
     }, 1200)
   }
@@ -167,11 +173,9 @@ function EmailView({ email }: { email: Email }) {
               draft={draft}
               onChange={setDraft}
               companyName={company?.name}
-              onConfirm={() => {
-                saveEmail({ ...email, quote: draft })
-                setDraft(null)
-              }}
+              onTransfer={(draftQuote) => transfer(draftQuote)}
               onCancel={() => setDraft(null)}
+              isTransferring={busy === 'transfer'}
             />
           ) : quote ? (
             <div className="card" style={{ padding: 14 }}>
@@ -218,7 +222,7 @@ function EmailView({ email }: { email: Email }) {
                     {new Date(email.transferredAt).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' })}
                   </div>
                 ) : (
-                  <button className="btn primary lg block" onClick={transfer} disabled={busy === 'transfer'}>
+                  <button className="btn primary lg block" onClick={() => transfer()} disabled={busy === 'transfer'}>
                     {busy === 'transfer' ? <Loader2 size={18} className="spin" /> : <Send size={18} />}{' '}
                     {t('inbox.transfer', { erp: ERP_NAME })}
                   </button>
@@ -241,14 +245,16 @@ function QuoteEditor({
   draft,
   onChange,
   companyName,
-  onConfirm,
+  onTransfer,
   onCancel,
+  isTransferring,
 }: {
   draft: QuoteRequest
   onChange: (q: QuoteRequest) => void
   companyName?: string
-  onConfirm: () => void
+  onTransfer: (draft: QuoteRequest) => void
   onCancel: () => void
+  isTransferring?: boolean
 }) {
   const t = useT()
   const setItem = (n: number, patch: Partial<QuoteRequest['items'][number]>) =>
@@ -297,12 +303,17 @@ function QuoteEditor({
       <Field label={t('common.notes')}>
         <textarea className="textarea" rows={2} value={draft.notes} onChange={(e) => onChange({ ...draft, notes: e.target.value })} />
       </Field>
-      <div className="row-gap" style={{ justifyContent: 'flex-end' }}>
-        <button className="btn" onClick={onCancel}>
+      <div className="quote-editor-actions">
+        <button className="btn" type="button" onClick={onCancel} disabled={isTransferring}>
           {t('common.cancel')}
         </button>
-        <button className="btn primary" onClick={onConfirm} disabled={draft.items.length === 0}>
-          {t('inbox.confirm')}
+        <button
+          className="btn primary"
+          type="button"
+          onClick={() => onTransfer(draft)}
+          disabled={isTransferring || draft.items.length === 0}
+        >
+          {isTransferring ? <Loader2 size={18} className="spin" /> : <Send size={18} />} {t('inbox.transfer', { erp: ERP_NAME })}
         </button>
       </div>
     </div>

@@ -82,7 +82,7 @@ Deploy: import the repo in Vercel (framework preset Vite). `vercel.json` adds th
 | Central voice command with accept / edit / reject | ✅ Plus duplicate detection, entity linking, and "already in the CRM" indicators |
 | Tasks board, linked, voice-created | ✅ Kanban-style board (Planned / In progress / Done) with drag-and-drop and voice status updates |
 | Knowledge base: sections, search, tutorials, voice entry, AI chat | ✅ Step-by-step tutorials with images/camera photos, voice dictation, and CRM-aware AI chat |
-| Inbox mockup: extract quote, confirm, transfer to ERP | ✅ "Transfer to Safir" (simulated handoff to the client's confirmed ERP) |
+| Inbox mockup: quote extraction & single-step ERP transfer | ✅ Single-step "Transfer to Safir" (simulated handoff to the client's confirmed ERP) |
 | Map and route planning in Google Maps | ✅ Open-path traveling salesperson optimization with deep links to Google Maps navigation |
 | Lead search mockup | ✅ Realistic Canton Bern commercial register entries with website verification |
 | simap Bot tab | ✅ Clean empty tab ready for public procurement integration |

@@ -48,7 +48,7 @@ Legend: ☐ = check this result.
 |---|---|---|
 | 1 | Open **Inbox**. | ☐ Two-pane view; unread mails bold; quote requests have an orange "Quote request" chip; unread count in sidebar. |
 | 2 | Open **Peter Zbinden — Quote request: shower partitions** (German: *Anfrage Offerte Duschtrennwände*) → **Extract request**. | ☐ Customer *Sanitär Zbinden AG*, contact, 3 items with qty and dimensions (stabiliser bars: dimensions **Missing**, not invented). |
-| 3 | Change a quantity, delete one line, **Add item**, then **Confirm** → **Transfer to Safir**. | ☐ Spinner, then green "Transferred to Safir · date/time"; list chip turns green. Customer name links to the company. |
+| 3 | Change a quantity, delete one line, **Add item**, then **Transfer to Safir** (single-step direct transfer). | ☐ Spinner, then green "Transferred to Safir · date/time"; list chip turns green. Customer name links to the company. |
 | 4 | Press **Speak** (sidebar) and type: *"Extract the quote from Hotel Bellevue."* | ☐ Opens that email and starts extraction automatically. |
 | 5 | **Lead search**: Region **Bern**, type **Plumbing / bathrooms**, Min. employees **10+** → **Search**. | ☐ "Searching commercial register…" → "Checking websites…" → results with website ✓, fit %. ☐ **Add** on one → "Added"; it appears under Companies. |
 | 6 | **Tasks** (desktop): drag a card from Planned to In progress. Open a task, set **Due** with the calendar (month arrows, Today), change **Company** with the searchable dropdown (type "ker"). | ☐ Card moves column. ☐ Calendar never gets cut off; dropdown filters as you type; selected item has ✓. |
