@@ -1,4 +1,4 @@
-import { checkOutput, GUARD_RULES, GuardError, hasForeignScript, languageRule, takeRateSlot } from './guard'
+import { checkOutput, GUARD_RULES, GuardError, hasForeignScript, languageRule, replyLanguage, takeRateSlot } from './guard'
 import { getSettings } from '../store/settings'
 import { fullName, getDB } from '../store/db'
 import { MissingKeyError, vaultFetch, vaultStatus } from './keyVault'
@@ -51,7 +51,7 @@ export async function transcribe(audio: Blob): Promise<string> {
     form.append('file', audio, `voice.${extFor(audio.type)}`)
     form.append('model', model)
     // Any spoken language is accepted (detected automatically); CRM names help spell names right.
-    // The answer is always written in English or German (see languageRule).
+    // The prompt holds names only: English wording in it can make the model translate German speech.
     form.append('prompt', vocabulary())
     const res = await vaultFetch(`${BASE}/audio/transcriptions`, {
       method: 'POST',
@@ -70,15 +70,18 @@ export interface ChatMessage {
 }
 
 export async function chat(messages: ChatMessage[], opts: { json?: boolean; temperature?: number } = {}) {
+  // Answer in the language of the user's latest message (detected on the device, not left to the model).
+  const input = [...messages].reverse().find((m) => m.role === 'user')?.content ?? ''
+  const lang = replyLanguage(input, getSettings().lang)
   // Every request carries the security and language rules at the end of its system message.
-  const rules = GUARD_RULES + languageRule(getSettings().lang)
+  const rules = GUARD_RULES + languageRule(lang)
   const guarded = messages.map((m, i) => (i === 0 && m.role === 'system' ? { ...m, content: m.content + rules } : m))
   if (guarded[0]?.role !== 'system') guarded.unshift({ role: 'system', content: rules.trim() })
   let reply = await complete(guarded, opts)
   if (hasForeignScript(reply)) {
     // One retry with an explicit correction; never show another language or script.
-    const lang = getSettings().lang === 'de' ? 'German' : 'English'
-    reply = await complete([...guarded, { role: 'system', content: `Your previous answer used a language other than English or German. Answer again, only in ${lang}.` }], opts)
+    const target = lang === 'de' ? 'German' : 'English'
+    reply = await complete([...guarded, { role: 'system', content: `Your previous answer used a language other than English or German. Answer again, only in ${target}.` }], opts)
     if (hasForeignScript(reply)) throw new GuardError('language')
   }
   // Replies that leak instructions, secrets or bulk personal data never reach the screen.
@@ -108,7 +111,7 @@ async function complete(messages: ChatMessage[], opts: { json?: boolean; tempera
 function vocabulary() {
   const db = getDB()
   const names = [...db.companies.map((c) => c.name), ...db.people.map(fullName)]
-  return `CRM for a Swiss glass manufacturer. Names: ${names.join(', ')}`.slice(0, 800)
+  return names.join(', ').slice(0, 800)
 }
 
 /** AI JSON is untrusted: turn any value into a trimmed string ("" for objects, null, …). */

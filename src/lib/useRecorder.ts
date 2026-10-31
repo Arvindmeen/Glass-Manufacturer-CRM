@@ -34,13 +34,15 @@ export function useRecorder() {
   const start = useCallback(async () => {
     const mine = ++session.current
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      // Mono speech is all transcription needs; it keeps the upload small.
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } })
       if (mine !== session.current || !mounted.current) {
         stream.getTracks().forEach((t) => t.stop())
         return
       }
       const mimeType = preferredTypes.find((t) => MediaRecorder.isTypeSupported(t))
-      const rec = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
+      // 32 kbit/s is plenty for speech (browsers default to ~128) and uploads ~4x faster on mobile data.
+      const rec = new MediaRecorder(stream, { ...(mimeType ? { mimeType } : {}), audioBitsPerSecond: 32_000 })
       chunks.current = []
       rec.ondataavailable = (e) => e.data.size && chunks.current.push(e.data)
       rec.start()

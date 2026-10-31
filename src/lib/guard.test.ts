@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { checkInput, checkOutput, GuardError, hasForeignScript, takeRateSlot } from './guard'
+import { checkInput, checkOutput, detectLanguage, GuardError, hasForeignScript, replyLanguage, takeRateSlot } from './guard'
 
 describe('checkInput', () => {
   it.each([
@@ -78,5 +78,22 @@ describe('language and rate', () => {
   it('allows 20 requests per minute, then refuses', () => {
     for (let i = 0; i < 20; i++) takeRateSlot()
     expect(() => takeRateSlot()).toThrow(GuardError)
+  })
+})
+
+describe('detectLanguage', () => {
+  it.each([
+    ['Kannst du bitte eine neue Aufgabe anlegen für mich? Und zwar, ich sollte bei Büchle Glas noch anrufen.', 'de'],
+    ['Erinnere mich morgen, Huber anzurufen', 'de'],
+    ['Remind me to call Huber tomorrow', 'en'],
+    ['I just met Anna Meier from Schreinerei Huber, she wants 12 shower panels', 'en'],
+  ] as const)('%s → %s', (text, lang) => {
+    expect(detectLanguage(text)).toBe(lang)
+  })
+
+  it('falls back to the app language when unclear', () => {
+    expect(detectLanguage('Büchle Glas')).toBe('de')
+    expect(replyLanguage('Huber AG', 'en')).toBe('en')
+    expect(replyLanguage('Huber AG', 'de')).toBe('de')
   })
 })

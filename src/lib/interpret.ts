@@ -210,13 +210,15 @@ function context(db: DB) {
   return { companies, people, tasks, meetings, knowledge, emails }
 }
 
+// Fixed rules and CRM data come first and the date/page last, so repeated requests share a long
+// identical prefix that OpenAI caches (prompt caching), which makes the reply noticeably faster.
 function systemPrompt(db: DB, page: string) {
   const ctx = context(db)
   const today = new Date()
   const weekday = today.toLocaleDateString('en-GB', { weekday: 'long' })
   return `You are the voice assistant inside the CRM of a Swiss glass manufacturer. The user is a field sales rep or technician, often on a phone.
-Turn what the user says into CRM actions, navigation and/or a short spoken-style answer. Today is ${weekday}, ${todayISO()}.
-The user is currently on: ${page}. "Here", "this company", "him/her" refer to that page's record when it fits.
+Turn what the user says into CRM actions, navigation and/or a short spoken-style answer. Today's date and the user's current page are given at the end.
+"Here", "this company", "him/her" refer to the current page's record when it fits.
 On a company or person page, a spoken meeting note or task with no other company/person named belongs to that page's record (link it).
 
 Rules:
@@ -235,7 +237,7 @@ Rules:
   Route planning: page "companies_map" with routeIds = the company ids to visit. Quote from an email: recordId = email id and extract = true.
 - language: "de" or "en" only when the user asks to switch the app language. Use recordId for one record, query to search a list.
 - answer: when the user asks a question, answer briefly from the data below. Overviews are questions too ("show all meetings in November 2026", "which tasks are overdue", "customers without a meeting this month"): filter by date relative to today and list matches (date, company, title), or say there are none; navigate to the matching page if helpful. Also give a one-sentence confirmation of what you will do otherwise. Never invent facts.
-- Understand any language, but write all text in English or German (see language rule). Leave unknown fields as "". Never invent phone numbers or emails.
+- Understand any language, but write the answer and all text fields in the language of the user's request (see language rule). Leave unknown fields as "". Never invent phone numbers or emails.
 
 Return JSON: {"answer": "", "navigate": {"page": "", "recordId": "", "query": "", "routeIds": [], "extract": false} or null, "language": "", "actions": [ ... ]}
 pages: ${PAGES.join(', ')}. recordId may be a company, person, knowledge or email id.
@@ -271,7 +273,9 @@ ${ctx.knowledge}
 
 Inbox (id | from | subject):
 ${ctx.emails}
-</crm_data>`
+</crm_data>
+
+Today is ${weekday}, ${todayISO()}. The user is currently on: ${page}.`
 }
 
 export async function interpret(text: string, page = 'unknown'): Promise<AssistantResult> {

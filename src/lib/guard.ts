@@ -71,10 +71,29 @@ const FOREIGN_SCRIPT = /[\u0370-\u03FF\u0400-\u052F\u0590-\u05FF\u0600-\u06FF\u0
 
 export const hasForeignScript = (text: string) => FOREIGN_SCRIPT.test(text)
 
-export const languageRule = (appLang: 'de' | 'en') => `
+// Common function words that only occur in one of the two languages (no shared ones like "in", "so", "die").
+const DE_WORDS = new Set('ich du er wir ihr und oder aber nicht kein keine ist sind bin bist hat habe haben wird werden war soll sollte sollen kann kannst können muss müssen möchte bitte danke der das den dem des ein eine einen einem einer mit für auf aus bei von zum zur nach über auch noch schon heute morgen gestern nächste nächsten woche mir mich dich ihm ihn uns euch sie zwar dann wenn dass wie was wer wo warum neue neuen anrufen aufgabe erinnere zeig öffne termin kunde kunden'.split(' '))
+const EN_WORDS = new Set('i you he we they and or but not no is are am was were has have had will would should shall can could must please thanks the a an of with for on from at to by about also still already today tomorrow yesterday next week me my him her us them that then when what who where why how new call task remind show open meeting customer'.split(' '))
+
+/** Language the user wrote in, or undefined when it is neither clearly German nor English. */
+export function detectLanguage(text: string): 'de' | 'en' | undefined {
+  let de = /[äöüß]/i.test(text) ? 0.5 : 0
+  let en = 0
+  for (const w of text.toLowerCase().match(/\p{L}+/gu) ?? []) {
+    if (DE_WORDS.has(w)) de++
+    else if (EN_WORDS.has(w)) en++
+  }
+  if (de === en) return undefined
+  return de > en ? 'de' : 'en'
+}
+
+/** Reply language: the language of the user's input; the app language when that is unclear. */
+export const replyLanguage = (input: string, appLang: 'de' | 'en') => detectLanguage(input) ?? appLang
+
+export const languageRule = (lang: 'de' | 'en') => `
 
 Language rule (highest priority): the user may speak or write any language (speech recognition may also render names in another script, e.g. "انا میئر" = "Anna Meier"). Understand it and match names to the CRM data.
-Always write your answer and every text field only in English or German: German if the user wrote German, otherwise ${appLang === 'de' ? 'German' : 'English'}. Translate content from other languages. Never output any other language or script.`
+Write your answer and every text field (titles, summaries, notes, steps) only in ${lang === 'de' ? 'German' : 'English'}, the language of the user's request, even if the instructions or CRM data are in another language. Translate content from other languages. Never output any other language or script.`
 
 /* ---------- 3. output ---------- */
 
