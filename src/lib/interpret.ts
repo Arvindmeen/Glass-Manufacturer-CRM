@@ -222,6 +222,7 @@ Turn what the user says into CRM actions, navigation and/or a short spoken-style
 On a company or person page, a spoken meeting note or task with no other company/person named belongs to that page's record (link it).
 
 Rules:
+- Be complete: go through the request sentence by sentence and emit one action for every company, person, link, meeting, task, task change and note it contains. Never skip or merge items. Two new people = two create_person actions (refs "new:p1", "new:p2"), each linked to their company.
 - Reuse existing records. If a company or person matches one below (even roughly, without "AG", a nickname or a typo), use its id and do NOT create it again.
 - Still list every task, meeting, note and knowledge entry the user mentions, even if it seems to exist already: the app detects duplicates itself and tells the user.
 - Only create a company/person when it clearly does not exist. Give new records a ref like "new:c1" / "new:p1" and use it to link other actions.
@@ -236,10 +237,11 @@ Rules:
 - navigate: when the user wants to see/open/find something ("open Huber", "show my tasks", "find carpentry shops in Thun").
   Route planning: page "companies_map" with routeIds = the company ids to visit. Quote from an email: recordId = email id and extract = true.
 - language: "de" or "en" only when the user asks to switch the app language. Use recordId for one record, query to search a list.
+- answer: write it after the actions and describe only what is in "actions"; never announce something that has no action.
 - answer: when the user asks a question, answer briefly from the data below. Overviews are questions too ("show all meetings in November 2026", "which tasks are overdue", "customers without a meeting this month"): filter by date relative to today and list matches (date, company, title), or say there are none; navigate to the matching page if helpful. Also give a one-sentence confirmation of what you will do otherwise. Never invent facts.
 - Understand any language, but write the answer and all text fields in the language of the user's request (see language rule). Leave unknown fields as "". Never invent phone numbers or emails.
 
-Return JSON: {"answer": "", "navigate": {"page": "", "recordId": "", "query": "", "routeIds": [], "extract": false} or null, "language": "", "actions": [ ... ]}
+Return JSON: {"actions": [ ... ], "navigate": {"page": "", "recordId": "", "query": "", "routeIds": [], "extract": false} or null, "language": "", "answer": ""}
 pages: ${PAGES.join(', ')}. recordId may be a company, person, knowledge or email id.
 Each action is one of:
 {"type":"create_company","ref":"new:c1","name":"","industry":"","street":"","zip":"","city":"","phone":"","email":"","notes":""}
@@ -353,10 +355,19 @@ export function resolve(db: DB, actions: RawAction[]): { items: ReviewItem[]; kn
   const fix = (ref: string) => remap.get(ref) ?? ref
 
   const proposals: Proposal[] = []
+  const usedRefs = new Set<string>()
+  /** The model's ref, or a fresh one when it is missing or already taken by another new record. */
+  const newRef = (raw: unknown, prefix: 'c' | 'p') => {
+    let ref = str(raw)
+    if (!ref || usedRefs.has(ref)) ref = `new:${prefix}${proposals.length}-${usedRefs.size}`
+    usedRefs.add(ref)
+    return ref
+  }
   for (const a of actions) {
     switch (a.type) {
       case 'create_company': {
-        const ref = str(a.ref) || `new:c${proposals.length}`
+        if (!str(a.name)) a.name = str(a.companyName)
+        const ref = newRef(a.ref, 'c')
         const existing = findCompany(db, str(a.name))
         if (existing) {
           remap.set(ref, existing.id)
@@ -373,7 +384,13 @@ export function resolve(db: DB, actions: RawAction[]): { items: ReviewItem[]; kn
         break
       }
       case 'create_person': {
-        const ref = str(a.ref) || `new:p${proposals.length}`
+        // Some replies give one "name" instead of first and last name: split it rather than drop the person.
+        if (!str(a.firstName) && !str(a.lastName)) {
+          const parts = (str(a.name) || str(a.fullName)).split(/\s+/).filter(Boolean)
+          a.lastName = parts.length > 1 ? parts.pop() : ''
+          a.firstName = parts.join(' ')
+        }
+        const ref = newRef(a.ref, 'p')
         const existing = findPerson(db, str(a.firstName), str(a.lastName))
         if (existing) {
           remap.set(ref, existing.id)

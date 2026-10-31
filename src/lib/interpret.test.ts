@@ -74,3 +74,26 @@ describe('resolve (voice command proposals)', () => {
     expect(items).toHaveLength(1)
   })
 })
+
+describe('resolve never drops a mentioned person', () => {
+  it('splits a full "name" when first and last name are missing', () => {
+    const { items } = resolve(db, [
+      { type: 'create_company', ref: 'new:c1', name: 'Büchler Glas' },
+      { type: 'create_person', ref: 'new:p1', firstName: 'Tom', lastName: 'Studer', role: 'Co-owner', companyRefs: ['new:c1'] },
+      { type: 'create_person', ref: 'new:p2', name: 'Albert Büchler', role: 'Co-owner', companyRefs: ['new:c1'] },
+    ])
+    const people = items.flatMap((i) => (i.proposal.kind === 'create_person' ? [i.proposal] : []))
+    expect(people.map((p) => `${p.firstName} ${p.lastName}`)).toEqual(['Tom Studer', 'Albert Büchler'])
+    expect(people.every((p) => p.companyRefs[0] === 'new:c1')).toBe(true)
+  })
+
+  it('keeps two new people apart when the reply reuses one ref', () => {
+    const { items } = resolve(db, [
+      { type: 'create_person', ref: 'new:p1', firstName: 'Tom', lastName: 'Studer' },
+      { type: 'create_person', ref: 'new:p1', firstName: 'Albert', lastName: 'Büchler' },
+    ])
+    const refs = items.flatMap((i) => (i.proposal.kind === 'create_person' ? [i.proposal.ref] : []))
+    expect(refs).toHaveLength(2)
+    expect(new Set(refs).size).toBe(2)
+  })
+})
