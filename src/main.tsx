@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { PasswordGate } from './components/PasswordGate'
 import { initVault } from './lib/keyVault'
 import { initDB } from './store/db'
 import { getSettings } from './store/settings'
@@ -15,9 +16,11 @@ void Promise.all([initDB(), initVault()]).then(() =>
   createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      <PasswordGate>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </PasswordGate>
     </ErrorBoundary>
   </StrictMode>,
 ))

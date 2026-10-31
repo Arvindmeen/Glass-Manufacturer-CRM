@@ -10,6 +10,9 @@ const ROUTES = ['/companies', '/companies?view=map', '/companies/c1', '/people',
 
 ;(async () => {
   const b = await chromium.launch()
+  // Every page sits behind the site password: open it the way a returning visitor would.
+  const newContext = b.newContext.bind(b)
+  b.newContext = async (o) => { const c = await newContext(o); await c.addInitScript(() => localStorage.setItem('glasscrm:gate', 'f3831c5e70ff9070c475c48c825cca87fc978a49c9f11ccef7e6d83a4d593261')); return c }
   const ctx = await b.newContext({ viewport: { width: 390, height: 820 }, locale: 'en-GB', isMobile: true, hasTouch: true })
   const p = await ctx.newPage()
   const errors = []

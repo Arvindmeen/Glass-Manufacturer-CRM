@@ -668,3 +668,9 @@ a.chip-link:focus-visible { outline: 2px solid var(--primary); outline-offset: 1
 .crash { min-height: 100dvh; display: grid; place-content: center; gap: 16px; padding: 24px; text-align: center; background: var(--bg); }
 .crash h1 { font-size: 1.2rem; }
 .crash .row-gap { justify-content: center; }
+
+/* site password */
+.gate { min-height: 100dvh; display: grid; place-items: center; padding: 16px; background: var(--bg); }
+.gate-card { width: min(100%, 360px); display: grid; gap: 12px; padding: 24px; text-align: center; }
+.gate-card .brand { font-size: 1.2rem; font-weight: 700; }
+.gate-icon { width: 44px; height: 44px; margin: 0 auto; display: grid; place-items: center; border-radius: 50%; background: var(--surface-2); color: var(--primary); }
