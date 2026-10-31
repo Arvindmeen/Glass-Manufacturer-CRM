@@ -174,7 +174,7 @@ export function CompaniesPage() {
       ) : (
         <div className="map-layout">
           <div className="card map-card">
-            <iframe key={mapSrc} title={t('company.map')} src={mapSrc} className="map" loading="lazy" referrerPolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" />
+            <iframe key={mapSrc} title={t('company.map')} src={mapSrc} className="map" referrerPolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" />
           </div>
 
           {route ? (

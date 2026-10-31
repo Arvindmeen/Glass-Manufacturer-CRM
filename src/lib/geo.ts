@@ -48,7 +48,7 @@ export const addressOf = (c: Company) =>
 
 /* Keyless Google Maps embeds (the only map service the brief allows). */
 const embed = (params: Record<string, string>) =>
-  `https://maps.google.com/maps?${new URLSearchParams({ ...params, output: 'embed' }).toString()}`
+  `https://www.google.com/maps?${new URLSearchParams({ ...params, output: 'embed' }).toString()}`
 
 export const embedPlace = (c: Company) => embed({ q: addressOf(c), z: '15' })
 
