@@ -239,11 +239,11 @@ Rules:
 - language: "de" or "en" only when the user asks to switch the app language. Use recordId for one record, query to search a list.
 - answer: write it after the actions and describe only what is in "actions"; never announce something that has no action.
 - answer: when the user asks a question, answer briefly from the data below. Overviews are questions too ("show all meetings in November 2026", "which tasks are overdue", "customers without a meeting this month"): filter by date relative to today and list matches (date, company, title), or say there are none; navigate to the matching page if helpful. Also give a one-sentence confirmation of what you will do otherwise. Never invent facts.
-- Understand any language, but write the answer and all text fields in the language of the user's request (see language rule). Leave unknown fields as "". Never invent phone numbers or emails.
+- Understand any language, but write the answer and all text fields in the language of the user's request (see language rule). Omit fields you would leave empty (shorter JSON is faster); use "navigate": null when not navigating. Never invent phone numbers or emails.
 
 Return JSON: {"actions": [ ... ], "navigate": {"page": "", "recordId": "", "query": "", "routeIds": [], "extract": false} or null, "language": "", "answer": ""}
 pages: ${PAGES.join(', ')}. recordId may be a company, person, knowledge or email id.
-Each action is one of:
+Each action is one of (keys shown for reference; include only the ones with a value, plus "type"):
 {"type":"create_company","ref":"new:c1","name":"","industry":"","street":"","zip":"","city":"","phone":"","email":"","notes":""}
 {"type":"create_person","ref":"new:p1","firstName":"","lastName":"","role":"","phone":"","email":"","notes":"","companyRefs":["<id or new ref>"]}
 {"type":"create_meeting","date":"YYYY-MM-DD","title":"","summary":"","companyRefs":[],"personRefs":[]}

@@ -4,7 +4,7 @@ import { useT } from '../i18n'
 import { aiErrorMessage } from '../lib/aiError'
 import { transcribe } from '../lib/openai'
 import { useRecorder } from '../lib/useRecorder'
-import { vaultStatus } from '../lib/keyVault'
+import { vaultStatus, warmUp } from '../lib/keyVault'
 import { ErrorText } from './ui'
 import { VoiceBar } from './VoiceBar'
 
@@ -47,6 +47,7 @@ export function VoiceRecorder({
   const begin = () => {
     if (!vaultStatus().hasKey) return setError(t('voice.noKey'))
     setError('')
+    warmUp()
     void rec.start()
   }
 

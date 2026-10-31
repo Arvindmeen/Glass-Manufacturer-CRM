@@ -23,6 +23,8 @@ const rec = (id, ok, detail = '') => { results.push({ id, ok, detail }); console
   let aiAuth = ''
   ctx.on('request', (r) => origins.add(new URL(r.url()).origin))
   await ctx.route('https://api.openai.com/**', (r) => {
+    // Connection warm-ups (OPTIONS, placeholder key) are not AI calls.
+    if (r.request().method() !== 'POST') return r.fulfill({ status: 200, body: '' })
     aiCalls++
     aiAuth = r.request().headers()['authorization'] || ''
     const body = typeof reply === 'function' ? reply(r) : reply

@@ -97,3 +97,18 @@ describe('resolve never drops a mentioned person', () => {
     expect(new Set(refs).size).toBe(2)
   })
 })
+
+describe('resolve accepts short replies (empty fields left out)', () => {
+  it('fills missing fields with empty values', () => {
+    const { items } = resolve(db, [
+      { type: 'create_company', ref: 'new:c1', name: 'Sparse Glas GmbH' },
+      { type: 'create_person', ref: 'new:p1', firstName: 'Mia', lastName: 'Sparse', companyRefs: ['new:c1'] },
+      { type: 'create_task', title: 'Call Mia', personRef: 'new:p1' },
+    ])
+    expect(items.map((i) => i.proposal)).toMatchObject([
+      { kind: 'create_company', name: 'Sparse Glas GmbH', city: '', phone: '', email: '' },
+      { kind: 'create_person', firstName: 'Mia', role: '', companyRefs: ['new:c1'] },
+      { kind: 'create_task', title: 'Call Mia', due: '', status: 'planned', personRef: 'new:p1', companyRef: 'new:c1' },
+    ])
+  })
+})

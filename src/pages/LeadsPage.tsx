@@ -3,7 +3,8 @@ import { Check, Globe, Loader2, Plus, Search } from 'lucide-react'
 import { useT, type TKey } from '../i18n'
 import { blankCompany, saveCompany, useDB } from '../store/db'
 import { findCompany } from '../lib/interpret'
-import { Select } from '../components/Dropdown'
+import { Select, ToggleChips } from '../components/Dropdown'
+import { haversine, type Point } from '../lib/route'
 import { Field, PageHead, toast } from '../components/ui'
 import { useSettings, type Lang } from '../store/settings'
 
@@ -50,6 +51,34 @@ const LEADS: Lead[] = [
   { name: 'Raumwerk Thun GmbH', type: 'interior', street: 'Scheibenstrasse 6', zip: '3600', city: 'Thun', canton: 'BE', uid: 'CHE-433.019.582', founded: 2017, employees: 10, website: 'raumwerk-thun.ch', signals: ['Shop fitting', 'Mirrors'], fit: 82 },
   { name: 'Objekt & Form AG', type: 'interior', street: 'Pilatusstrasse 41', zip: '6003', city: 'Luzern', canton: 'LU', uid: 'CHE-240.786.311', founded: 2003, employees: 19, website: 'objektundform.ch', signals: ['Glass partitions'], fit: 78 },
 ]
+
+/** Town centres of the sample leads, so a search can be narrowed to one city and its surroundings. */
+const CITY_POS: Record<string, Point> = {
+  Aarau: { lat: 47.392, lng: 8.044 },
+  Bern: { lat: 46.948, lng: 7.447 },
+  Burgdorf: { lat: 47.059, lng: 7.628 },
+  Fribourg: { lat: 46.806, lng: 7.162 },
+  Frutigen: { lat: 46.588, lng: 7.648 },
+  Heimberg: { lat: 46.783, lng: 7.604 },
+  Kehrsatz: { lat: 46.91, lng: 7.471 },
+  Konolfingen: { lat: 46.879, lng: 7.621 },
+  'Langnau i.E.': { lat: 46.9395, lng: 7.7871 },
+  Luzern: { lat: 47.05, lng: 8.309 },
+  Lyss: { lat: 47.074, lng: 7.306 },
+  'Matten b. Interlaken': { lat: 46.678, lng: 7.869 },
+  'Muri b. Bern': { lat: 46.931, lng: 7.486 },
+  Oensingen: { lat: 47.287, lng: 7.723 },
+  Solothurn: { lat: 47.208, lng: 7.537 },
+  Thun: { lat: 46.758, lng: 7.628 },
+  Zürich: { lat: 47.377, lng: 8.54 },
+}
+const RADII = [0, 10, 25, 50] as const
+/** Distance in km from the chosen city (Infinity when unknown). */
+const kmFrom = (city: string, l: Lead) => {
+  const a = CITY_POS[city]
+  const b = CITY_POS[l.city]
+  return a && b ? haversine(a, b) : Infinity
+}
 
 const REGIONS = ['BE', 'SO', 'FR', 'LU', 'ZH', 'AG'] as const
 const CANTONS: Record<Lang, Record<(typeof REGIONS)[number], string>> = {
@@ -101,8 +130,13 @@ export function LeadsPage() {
   const t = useT()
   const { lang } = useSettings()
   const db = useDB()
-  const [region, setRegion] = useState<string>('BE')
-  const [type, setType] = useState<LeadType>('carpentry')
+  /** "canton:BE", "city:Bern" or "" for anywhere. */
+  const [region, setRegion] = useState<string>('canton:BE')
+  const [radius, setRadius] = useState<(typeof RADII)[number]>(10)
+  /** Several business types at once; none ticked means all types. */
+  const [types, setTypes] = useState<LeadType[]>(['carpentry'])
+  const city = region.startsWith('city:') ? region.slice(5) : ''
+  const canton = region.startsWith('canton:') ? region.slice(7) : ''
   const [minEmployees, setMinEmployees] = useState(0)
   const [websiteOnly, setWebsiteOnly] = useState(true)
   const [phase, setPhase] = useState<Phase>('idle')
@@ -117,11 +151,15 @@ export function LeadsPage() {
     setPhase('register')
     timers.current = [window.setTimeout(() => setPhase('websites'), 900)]
     timers.current.push(window.setTimeout(() => {
-      const byType = LEADS.filter((l) => l.type === type && l.employees >= minEmployees)
-      const inRegion = byType.filter((l) => !region || l.canton === region)
+      const byType = LEADS.filter((l) => (!types.length || types.includes(l.type)) && l.employees >= minEmployees)
+      const inRegion = byType.filter((l) =>
+        city ? (radius === 0 ? l.city === city : kmFrom(city, l) <= radius) : !canton || l.canton === canton,
+      )
+      // A city search lists the nearest first; otherwise the best fit first.
+      const order = (a: Lead, b: Lead) => (city ? kmFrom(city, a) - kmFrom(city, b) || b.fit - a.fit : b.fit - a.fit)
       // Static data: fall back to neighbouring regions so the list never looks empty.
-      const list = inRegion.length >= 3 ? inRegion : [...inRegion, ...byType.filter((l) => !inRegion.includes(l))]
-      setResults(list.sort((a, b) => b.fit - a.fit))
+      const extra = inRegion.length >= 3 ? [] : byType.filter((l) => !inRegion.includes(l)).sort(order)
+      setResults([...inRegion.sort(order), ...extra])
       setPhase('done')
     }, 1900))
   }
@@ -145,27 +183,44 @@ export function LeadsPage() {
     <>
       <PageHead title={t('nav.leads')} />
       <div className="card form" style={{ padding: 16 }}>
-        <div className="row">
-          <Field label={t('leads.region')} group>
-            <Select
-              label={t('leads.region')}
-              value={region}
-              onChange={(v) => setRegion(v ?? '')}
-              options={[{ value: '', label: t('leads.any') }, ...REGIONS.map((r) => ({ value: r, label: CANTONS[lang][r], sub: r }))]}
-            />
+        <Field label={t('leads.region')} group>
+          <Select
+            label={t('leads.region')}
+            value={region}
+            onChange={(v) => setRegion(v ?? '')}
+            searchable
+            options={[
+              { value: '', label: t('leads.any') },
+              ...REGIONS.map((r) => ({ value: `canton:${r}`, label: CANTONS[lang][r], sub: `${t('leads.canton')} ${r}` })),
+              ...Object.keys(CITY_POS)
+                .sort((a, b) => a.localeCompare(b))
+                .map((c) => ({ value: `city:${c}`, label: c, sub: `${t('leads.city')} · ${LEADS.find((l) => l.city === c)?.canton ?? ''}` })),
+            ]}
+          />
+        </Field>
+        {/* Own line, so the four radius choices fit on phones too. */}
+        {city && (
+          <Field label={t('leads.radius')} group>
+            <div className="segmented">
+              {RADII.map((r) => (
+                <button key={r} type="button" className={radius === r ? 'active' : ''} onClick={() => setRadius(r)}>
+                  {r === 0 ? t('leads.cityOnly') : `${r} km`}
+                </button>
+              ))}
+            </div>
           </Field>
-          <Field label={t('leads.type')} group>
-            <Select
-              label={t('leads.type')}
-              value={type}
-              onChange={(v) => v && setType(v as LeadType)}
-              options={TYPES.map((x) => ({ value: x, label: t(`leads.${x}` as TKey) }))}
-            />
-          </Field>
-        </div>
+        )}
+        <Field label={t('leads.type')} group>
+          <ToggleChips
+            options={TYPES.map((x) => ({ value: x, label: t(`leads.${x}` as TKey) }))}
+            selected={types}
+            onToggle={(v) => setTypes((list) => (list.includes(v as LeadType) ? list.filter((x) => x !== v) : [...list, v as LeadType]))}
+          />
+          {types.length === 0 && <span className="muted small">{t('leads.allTypes')}</span>}
+        </Field>
         <div className="row">
           <Field label={t('leads.minEmployees')} group>
-            <div className="segmented">
+            <div className="segmented scroll-x">
               {[0, 5, 10, 20].map((n) => (
                 <button key={n} type="button" className={minEmployees === n ? 'active' : ''} onClick={() => setMinEmployees(n)}>
                   {n === 0 ? t('leads.any') : `${n}+`}
@@ -200,7 +255,8 @@ export function LeadsPage() {
                   <div className="grow">
                     <div className="title">{l.name}</div>
                     <div className="sub">
-                      {l.zip} {l.city} · {l.canton} · {t('leads.employees', { n: l.employees })}
+                      {l.zip} {l.city} · {l.canton}
+                      {city && l.city !== city && Number.isFinite(kmFrom(city, l)) && ` · ${Math.round(kmFrom(city, l))} km`} · {t('leads.employees', { n: l.employees })}
                     </div>
                     <div className="chips" style={{ marginTop: 6 }}>
                       <span className="chip ok">

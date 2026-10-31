@@ -197,8 +197,13 @@ export const en = {
   'inbox.addItem': 'Add item',
 
   // leads
-  'leads.region': 'Region',
-  'leads.type': 'Type of business',
+  'leads.region': 'Region or city',
+  'leads.type': 'Type of business (select several)',
+  'leads.canton': 'Canton',
+  'leads.city': 'City',
+  'leads.radius': 'Radius',
+  'leads.cityOnly': 'City only',
+  'leads.allTypes': 'None selected: all types are searched.',
   'leads.minEmployees': 'Min. employees',
   'leads.checked': 'Checked',
   'leads.hasWebsite': 'Website checked',

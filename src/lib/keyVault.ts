@@ -239,6 +239,31 @@ export async function vaultFetch(url: string, init: RequestInit & { headers?: Re
   })
 }
 
+let warmedAt = 0
+
+/**
+ * Opens the connection to OpenAI and caches the browser's CORS preflight for the AI endpoints
+ * while the user is still speaking, so the real requests skip those round trips.
+ * Sends no key (a placeholder Authorization header only names the header for the preflight);
+ * the answers are ignored.
+ */
+export function warmUp() {
+  if (Date.now() - warmedAt < 60_000) return
+  warmedAt = Date.now()
+  for (const path of ['/v1/audio/transcriptions', '/v1/chat/completions']) {
+    // OPTIONS is answered with 200 by these endpoints (no error in the console, nothing billed).
+    void nativeFetch(API_ORIGIN + path, {
+      method: 'OPTIONS',
+      credentials: 'omit',
+      referrerPolicy: 'no-referrer',
+      cache: 'no-store',
+      mode: 'cors',
+      redirect: 'error',
+      headers: { Authorization: 'Bearer warm-up', 'Content-Type': 'application/json' },
+    }).catch(() => {})
+  }
+}
+
 /** Earlier versions kept the key in localStorage in plain text: move it into the vault and wipe it. */
 function readLegacyKey(): string | null {
   try {

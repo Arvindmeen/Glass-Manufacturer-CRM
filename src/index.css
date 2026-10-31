@@ -680,3 +680,11 @@ a.chip-link:focus-visible { outline: 2px solid var(--primary); outline-offset: 1
 .task-filter-bar .btn.on { background: var(--surface-2); border-color: var(--primary); }
 .task-filter { display: grid; gap: 12px; padding: 14px; margin-bottom: 12px; }
 .task-filter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+
+/* segmented control that scrolls sideways when its options do not fit (e.g. on phones) */
+.segmented.scroll-x { overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; scrollbar-color: var(--border) transparent; padding-bottom: 5px; }
+.segmented.scroll-x button { flex: 1 0 auto; }
+.segmented.scroll-x::-webkit-scrollbar { height: 4px; }
+.segmented.scroll-x::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.segmented.scroll-x::-webkit-scrollbar-track { background: transparent; }
+@media (min-width: 900px) { .segmented.scroll-x { padding-bottom: 3px; } }

@@ -22,6 +22,8 @@ const ROUTES = ['/companies', '/companies?view=map', '/companies/c1', '/people',
   let status = 200
   let aiCalls = 0
   await ctx.route('https://api.openai.com/**', (r) => {
+    // Connection warm-ups (OPTIONS, placeholder key) are not AI calls.
+    if (r.request().method() !== 'POST') return r.fulfill({ status: 200, body: '' })
     aiCalls++
     if (status === 'network') return r.abort('failed')
     if (status !== 200) return r.fulfill({ status, json: { error: { message: 'Incorrect API key provided: sk-proj-****wxyz' } } })
