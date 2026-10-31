@@ -10,7 +10,6 @@ import {
   MessageCircle,
   Mic,
   Navigation as NavIcon,
-  Pencil,
   RefreshCw,
   Send,
   StickyNote,
@@ -34,7 +33,6 @@ import {
   type PageKey,
   type Proposal,
   type Ref,
-  type Decision,
   type ReviewItem,
   type Step,
   COMPANY_FIELDS,
@@ -178,7 +176,8 @@ export function VoiceCommand({ onClose }: { onClose: () => void }) {
       if (refused) throw new GuardError(refused)
       const r = await interpret(text, page)
       setResult(r)
-      setItems(withPhotos(r.items))
+      // Everything starts accepted: one tap saves it all, the user only declines what is wrong.
+      setItems(withPhotos(r.items).map((i) => ({ ...i, decision: 'accepted' as const })))
       // Also review when everything was already there, so the user sees it instead of a silent no-op.
       if (r.items.length || r.known.length) setPhase('review')
       // Nothing to change: just answer, switch language and/or open the page.
@@ -461,7 +460,6 @@ function ProposalCard({
 }) {
   const t = useT()
   const locale = useLocale()
-  const [editing, setEditing] = useState(false)
   const refs = useRefs(items)
   const { tasks, companies, people, meetings } = useDB()
   const p = item.proposal
@@ -814,15 +812,10 @@ function ProposalCard({
   }
 
   const decision = item.decision
-  const decide = (d: Decision) => {
-    setEditing(false)
-    // Tapping the active choice again undoes it.
-    onChange({ decision: decision === d ? 'pending' : d })
-  }
-  const edit = () => {
-    if (decision === 'rejected') onChange({ decision: 'pending' })
-    setEditing((e) => !e)
-  }
+  // Proposals start accepted; the X declines one, tapping it (or the declined card) again restores it.
+  const toggleReject = () => onChange({ decision: decision === 'rejected' ? 'accepted' : 'rejected' })
+  // The fields are editable right away; kinds without fields just show their summary.
+  const editable = decision !== 'rejected' && !!form
 
   return (
     <div className={`card proposal ${decision}`}>
@@ -830,48 +823,23 @@ function ProposalCard({
         <span className="row-gap muted small" style={{ fontWeight: 600 }}>
           {icons[p.kind]} {t(`proposal.${p.kind}`)}
         </span>
-        <div className="row-gap" style={{ gap: 4 }}>
-          {p.kind !== 'delete_task' && p.kind !== 'update_meeting' && (
-            <button
-              className={`btn ghost icon small${editing ? ' on' : ''}`}
-              onClick={edit}
-              aria-label={t('common.edit')}
-              aria-pressed={editing}
-            >
-              <Pencil size={16} />
-            </button>
-          )}
-          <button
-            className="btn icon small reject"
-            onClick={() => decide('rejected')}
-            aria-label={t('proposal.reject')}
-            aria-pressed={decision === 'rejected'}
-          >
-            <X size={16} />
-          </button>
-          <button
-            className="btn icon small accept"
-            onClick={() => decide('accepted')}
-            aria-label={t('proposal.accept')}
-            aria-pressed={decision === 'accepted'}
-          >
-            <Check size={16} />
-          </button>
-        </div>
+        <button
+          className="btn icon small reject"
+          onClick={toggleReject}
+          aria-label={t('proposal.reject')}
+          aria-pressed={decision === 'rejected'}
+        >
+          <X size={16} />
+        </button>
       </div>
-      {editing ? (
-        <div className="form">
-          {form}
-          <button className="btn primary" onClick={() => decide('accepted')}>
-            <Check size={16} /> {t('common.done')}
-          </button>
-        </div>
+      {editable ? (
+        <div className="form">{form}</div>
       ) : (
-        <div onClick={edit} className="proposal-body">{summary}</div>
+        <div onClick={decision === 'rejected' ? toggleReject : undefined} className="proposal-body">{summary}</div>
       )}
-      {decision !== 'pending' && !editing && (
-        <div className={`decision ${decision}`}>
-          {decision === 'accepted' ? <Check size={14} /> : <X size={14} />} {t(`proposal.${decision}`)}
+      {decision === 'rejected' && (
+        <div className="decision rejected">
+          <X size={14} /> {t('proposal.rejected')}
         </div>
       )}
       {decision !== 'rejected' && (p.kind === 'create_company' || p.kind === 'create_person') && !!p.similar?.length && (

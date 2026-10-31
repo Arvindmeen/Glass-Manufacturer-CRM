@@ -90,7 +90,7 @@ const ROUTES = ['/companies', '/companies?view=map', '/companies/c1', '/people',
   await p.goto(BASE + '/companies/c1'); await p.waitForTimeout(300)
   rec('F-08 linked tasks shown on the company page', (await p.locator('body').innerText()).includes('Send offer for shower panels'))
 
-  // ---------- voice command: review, accept / edit / reject, duplicates, linking
+  // ---------- voice command: review, edit in place / decline, duplicates, linking
   reply = { answer: '', actions: [
     { type: 'create_company', ref: 'new:c1', name: 'Schreinerei Huber', city: 'Thun' },
     { type: 'create_person', ref: 'new:p1', firstName: 'Lena', lastName: 'Audit', role: 'Buyer', companyRefs: ['new:c1'] },
@@ -103,13 +103,9 @@ const ROUTES = ['/companies', '/companies?view=map', '/companies/c1', '/people',
   const known = await p.locator('.known li').allInnerTexts()
   rec('F-09 existing company recognised (no second Schreinerei Huber)', known.some((k) => k.includes('Schreinerei Huber AG')) && !(await p.locator('.proposal .title', { hasText: /^Schreinerei Huber$/ }).count()))
   const save = p.locator('.sheet-foot button', { hasText: /Save/ })
-  rec('F-10 nothing is saved before the user decides (Save disabled)', await save.isDisabled())
+  rec('F-10 proposals start accepted and editable (no accept/edit taps needed)', await save.isEnabled() && /Save 4/.test(await save.innerText()))
   const cards = p.locator('.proposal:not(.nav-proposal)')
-  await cards.nth(0).locator('[aria-label=Accept]').click()
-  await cards.nth(1).locator('[aria-label=Accept]').click()
-  await cards.nth(2).locator('[aria-label=Edit]').click()
   await cards.nth(2).locator('input').first().fill('Call Lena on Friday morning')
-  await cards.nth(2).locator('button', { hasText: 'Done' }).click()
   await cards.nth(3).locator('[aria-label=Reject]').click()
   await save.click(); await p.waitForTimeout(2600)
   d = await db()
