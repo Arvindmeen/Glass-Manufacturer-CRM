@@ -674,3 +674,9 @@ a.chip-link:focus-visible { outline: 2px solid var(--primary); outline-offset: 1
 .gate-card { width: min(100%, 360px); display: grid; gap: 12px; padding: 24px; text-align: center; }
 .gate-card .brand { font-size: 1.2rem; font-weight: 700; }
 .gate-icon { width: 44px; height: 44px; margin: 0 auto; display: grid; place-items: center; border-radius: 50%; background: var(--surface-2); color: var(--primary); }
+
+/* tasks: filter & sort */
+.task-filter-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+.task-filter-bar .btn.on { background: var(--surface-2); border-color: var(--primary); }
+.task-filter { display: grid; gap: 12px; padding: 14px; margin-bottom: 12px; }
+.task-filter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
