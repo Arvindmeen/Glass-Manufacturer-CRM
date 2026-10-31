@@ -66,6 +66,7 @@ A mobile-first CRM for a sales rep who is on the road all day. The core idea: **
 | 6 Map and route planning in Google Maps | ✅ |
 | 7 Lead search mockup | ✅ Static results |
 | 8 simap Bot tab | ✅ Empty |
+| Prototype protection | ✅ Site password gate (`GateSecurityEngine`) with ECMAScript `#` private fields, 7h session, browser isolation, rate limiting |
 
 ## A2. Assumptions
 
@@ -268,7 +269,7 @@ There are two entry points, both with the same guard rails. **Speak** (the centr
 ```mermaid
 flowchart LR
     subgraph Browser["Browser (phone or desktop)"]
-        UI[React UI<br/>pages, sheets, voice bar]
+        Gate[Password Gate<br/>GateSecurityEngine<br/>#private fields · 7h session] --> UI[React UI<br/>pages, sheets, voice bar]
         Store[(Store<br/>IndexedDB + localStorage<br/>cross-tab sync)]
         Vault[(Key vault<br/>AES-256-GCM,<br/>non-extractable key)]
         Guard[Guard rails<br/>input · prompt · output · rate]
@@ -289,6 +290,7 @@ flowchart LR
 | OpenAI key | Encrypted at rest and in memory. Only `vaultFetch` can use it, and only towards `api.openai.com`. Never shown (only dots). Option "until I close the browser". |
 | Hosting | Static files on Vercel with CSP (scripts only from the app itself; network only to OpenAI; frames only from Google Maps), HSTS, no framing, strict permissions. |
 | Secrets in Git | `scripts/check-secrets.mjs` runs before every build and in the pre-commit hook. |
+| Site access gate | Wrapped in `PasswordGate` before the app renders. Uses `GateSecurityEngine` with native ECMAScript `#` private fields, 7-hour active work session, User-Agent binding, 5-attempt brute-force rate limiter with 30s lockout, timing attack delay, DOM anti-inspection, show/hide eye toggle, and automatic browser language detection with on-screen DE/EN toggle. |
 
 ## A7. Route planning
 
@@ -320,6 +322,24 @@ flowchart TB
 
 - **Data minimisation:** phone numbers, emails and addresses are sent to the AI only for the companies and people a question names.
 - **Known limit (by design):** without a server, code running in the open app can use the key. Part B moves the key to the server.
+
+### A8.1 Prototype site access gate security
+To protect the publicly hosted prototype on Vercel from unauthorized access and automated web scrapers without requiring a full user database, the app wraps the UI in `<PasswordGate>` (`src/components/PasswordGate.tsx`):
+
+1. **Encapsulation via ECMAScript `#` Private Fields:** All validation logic, cryptographic functions, and lockout tracking run within `GateSecurityEngine`. Private fields (`#targetHash`, `#storageKey`, `#lockoutKey`, `#maxAttempts`, `#sessionDurationMs`) are enforced at the JavaScript engine level (V8 / JavaScriptCore) and cannot be inspected or modified from the DevTools console.
+2. **7-Hour Work Session:** A successful unlock grants access for 7 hours (`SEVEN_HOURS_MS`). Active listeners on `visibilitychange`, window `focus`, and a 60-second interval timer automatically re-lock the app if 7 hours elapse while a tab is kept open.
+3. **Browser-Specific Signature:** The session is cryptographically bound to `navigator.userAgent`:
+   $$\text{signature} = \text{SHA-256}(\text{hash} + \text{expiresAt} + \text{randomToken} + \text{userAgent} + \text{salt})$$
+   Cloning or exporting `localStorage` to another browser or device invalidates the session immediately.
+4. **Brute-Force Rate Limiting:** 5 consecutive failed attempts trigger an enforced 30-second lockout with a real-time countdown timer.
+5. **Anti-Inspection Hardening:**
+   - Input characters use CSS-level disc masking (`-webkit-text-security: disc`), preventing DevTools attribute changes from exposing the password.
+   - DevTools keyboard shortcuts (`F12`, `Ctrl+Shift+I/J/C`, `Ctrl+U`) and context menus (`onContextMenu`) are blocked on the gate screen.
+   - Clipboard copy/cut is disabled; password managers are ignored via `data-1p-ignore` and `data-lpignore`.
+   - Constant-time artificial delay (350 ms) mitigates timing side-channel attacks.
+   - Plaintext input is purged from memory and the DOM immediately upon form submission.
+6. **Show/Hide Eye Reveal:** Accessible toggle button (`Eye` / `EyeOff` icons) allows users to verify characters before submitting.
+7. **Bilingual Detection:** Checks `navigator.language` to present a full German page to German browsers and full English to all others, with an instant `[DE | EN]` on-screen switcher.
 
 ## A9. Languages
 
@@ -1163,24 +1183,44 @@ Biggest levers: the AI prompt size (search, not whole-CRM context) and the datab
 ## B12. What to build first
 
 ```mermaid
-gantt
-    dateFormat  YYYY-MM-DD
-    axisFormat  %d %b
-    tickInterval 2week
-    title Build order (indicative, one to two developers)
-    section Foundation
-    Auth, tenants, users, RLS, CI, staging      :a1, 2026-11-09, 3w
-    section Core workflow
-    Contacts, meetings, tasks API + app on API   :a2, after a1, 3w
-    Voice command on the server (upload, jobs)  :a3, after a2, 3w
-    section Knowledge
-    Knowledge base, files, chat with search      :a4, after a3, 2w
-    section Integrations
-    Email sync + quote extraction                :a5, after a4, 3w
-    ERP transfer (Safir adapter)                 :a6, after a5, 2w
-    Geocoding + server route optimisation        :a7, after a4, 1w
-    section Later
-    Lead search (Zefix), simap bot, offline PWA  :a8, after a6, 4w
+flowchart LR
+    subgraph S1["1. Foundation (3 wks)"]
+        F1["Auth · Tenants · RLS<br/>CI with isolation tests · Staging"]
+    end
+    subgraph S2["2. Core Workflow (3 wks)"]
+        F2["Contacts · Meetings · Tasks API<br/>App switches to API"]
+    end
+    subgraph S3["3. Voice on Server (3 wks)"]
+        F3["Audio upload · Whisper job<br/>Proposals · 1-transaction commit"]
+    end
+    subgraph S4["4. Knowledge & Chat (2 wks)"]
+        F4["Knowledge base with S3 photos<br/>RAG chat with search context"]
+    end
+    subgraph S5["5. Integrations (3 wks)"]
+        F5["M365/Gmail sync · Quote extraction<br/>Safir ERP adapter · Route geocoding"]
+    end
+    subgraph S6["6. Later Additions (4 wks)"]
+        F6["Zefix lead search · simap bot<br/>Offline recording PWA"]
+    end
+    S1 --> S2 --> S3 --> S4 --> S5 --> S6
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ```
 
 | Order | Item | Why first |
