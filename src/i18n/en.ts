@@ -238,12 +238,7 @@ export const en = {
   'settings.translateNeedsKey': 'Add an OpenAI key to translate your own entries too',
   'settings.translateFailed': 'Some entries could not be translated. Try again later.',
   'settings.keyStored': 'Encrypted on this device. Only sent to OpenAI.',
-  'settings.sessionTitle': 'Security & Session',
-  'settings.sessionActive': 'Active 7-hour work session',
-  'settings.sessionStart': 'Started: {time}',
-  'settings.sessionExpires': 'Locks at: {time}',
-  'settings.lockNow': 'Lock CRM now',
-  'settings.lockConfirm': 'Lock the CRM now and return to the password screen?',
+
 }
 
 export type TKey = keyof typeof en

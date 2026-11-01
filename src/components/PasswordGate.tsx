@@ -38,7 +38,6 @@ interface LockoutState {
 }
 
 const gateChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('glasscrm:gate') : null
-const lockListeners = new Set<() => void>()
 
 /**
  * Encapsulated security manager.
@@ -262,47 +261,7 @@ class GateSecurityEngine {
 // Singleton security engine instance
 const securityEngine = new GateSecurityEngine(PASSWORD_SHA256, STORAGE_KEY, LOCKOUT_KEY)
 
-/** Formats milliseconds into HH:MM:SS */
-export function formatRemainingTime(ms: number): string {
-  if (ms <= 0) return '00:00:00'
-  const totalSeconds = Math.floor(ms / 1000)
-  const hours = Math.floor(totalSeconds / 3600)
-  const minutes = Math.floor((totalSeconds % 3600) / 60)
-  const seconds = totalSeconds % 60
-  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-}
 
-/** Lock the CRM immediately across all active tabs */
-export function lockGateSession() {
-  securityEngine.lock()
-  gateChannel?.postMessage({ type: 'lock', expired: false })
-  lockListeners.forEach((fn) => fn())
-}
-
-/** Hook providing live countdown and session status to components */
-export function useGateSession() {
-  const [session, setSession] = useState(() => securityEngine.getSession())
-  const [now, setNow] = useState(() => Date.now())
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setNow(Date.now())
-      setSession(securityEngine.getSession())
-    }, 1000)
-    return () => clearInterval(timer)
-  }, [])
-
-  const remainingMs = session ? Math.max(0, session.expiresAt - now) : 0
-
-  return {
-    isUnlocked: Boolean(session && remainingMs > 0),
-    unlockedAt: session?.unlockedAt ?? null,
-    expiresAt: session?.expiresAt ?? null,
-    remainingMs,
-    remainingFormatted: formatRemainingTime(remainingMs),
-    lock: lockGateSession,
-  }
-}
 
 const TEXT = {
   de: {
@@ -357,17 +316,6 @@ export function PasswordGate({ children }: { children: ReactNode }) {
 
   const t = TEXT[lang]
 
-  // Listen for local manual locks (e.g. from Settings "Lock CRM now" button)
-  useEffect(() => {
-    const onManualLock = () => {
-      setUnlocked(false)
-      setExpiredNotice(false)
-    }
-    lockListeners.add(onManualLock)
-    return () => {
-      lockListeners.delete(onManualLock)
-    }
-  }, [])
 
   // Listen for cross-tab lock / unlock messages via BroadcastChannel
   useEffect(() => {
