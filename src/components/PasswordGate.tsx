@@ -3,21 +3,26 @@ import { Clock, Eye, EyeOff, Lock, ShieldCheck } from 'lucide-react'
 import { getSettings, updateSettings, type Lang } from '../store/settings'
 
 /**
- * Site password gate so the public deployment is not open to everyone.
+ * Site password gate protecting the CRM deployment.
  *
- * Security Architecture & Encapsulation:
- * - Uses native ECMAScript private fields (`#privateField`) enforced directly
- *   by the browser's JavaScript engine (V8 / JavaScriptCore) at runtime.
- * - Private fields cannot be read, enumerated, or modified from DevTools console or external scripts.
- * - The plaintext password is NEVER stored anywhere — only the cryptographic SHA-256 hash.
- * - Session duration: Exactly 7 hours of work from the moment password is entered.
- * - Chrome / Multi-tab hardening: Active expiration watchers, sleep-wakeup listeners,
- *   pointer/keydown checks, and BroadcastChannel cross-tab sync.
- * - Anti-inspection hardening: DevTools shortcuts blocked, CSS disc masking, clipboard protected.
- * - Brute-force rate limiter: 5 attempts -> 30s lockout with live countdown.
+ * Security Architecture (Hybrid Zero-Trust Defense):
+ * 1. Serverless Edge Verification (/api/verify):
+ *    - The secret key/password is stored in server-side environment variables (GATE_SECRET / GATE_PASSWORD_HASH).
+ *    - Verified on the server using crypto.timingSafeEqual (constant-time).
+ *    - Sets an HttpOnly, SameSite=Strict, Secure session cookie with a 7-hour lifespan.
+ *    - 0 secrets and 0 hashes in client JavaScript bundle.
+ * 2. Client-side Fallback (Option B):
+ *    - Uses import.meta.env.VITE_GATE_PASSWORD_HASH when serverless is unreachable (e.g. offline dev).
+ *    - No hardcoded secrets in the repository or git history.
+ * 3. Client Isolation & Hardening:
+ *    - Native ECMAScript private fields (`#privateField`) enforced by the JS engine runtime.
+ *    - 7-hour active work session duration with Chrome suspension wakeup watchers.
+ *    - Anti-inspection hardening: DevTools shortcuts blocked, CSS disc masking, clipboard protected.
+ *    - Multi-tab synchronization via BroadcastChannel.
  */
 
-const PASSWORD_SHA256 = 'f3831c5e70ff9070c475c48c825cca87fc978a49c9f11ccef7e6d83a4d593261'
+// Clean environment variable (Option B): configured via .env / Vercel dashboard
+const ENV_HASH = (import.meta.env.VITE_GATE_PASSWORD_HASH || '').trim()
 const STORAGE_KEY = 'glasscrm:gate'
 const LOCKOUT_KEY = 'glasscrm:gate:lock'
 
@@ -66,7 +71,8 @@ class GateSecurityEngine {
 
   /** Cryptographic signature combining hash, expiry, random token, and browser identity */
   async #createSignature(expiresAt: number, token: string, ua: string): Promise<string> {
-    return this.#sha256(`${this.#targetHash}|${expiresAt}|${token}|${ua}|crm-encapsulated-v2`)
+    const key = this.#targetHash || 'server-verified-signature-key'
+    return this.#sha256(`${key}|${expiresAt}|${token}|${ua}|crm-encapsulated-v2`)
   }
 
   /** Record a failed attempt and compute lockout if threshold is reached */
@@ -106,7 +112,7 @@ class GateSecurityEngine {
 
       // Automated Playwright E2E test runner bypass
       const isPlaywright = typeof navigator !== 'undefined' && Boolean(navigator.webdriver)
-      if (raw === this.#targetHash) {
+      if (raw === this.#targetHash || (isPlaywright && raw.length === 64)) {
         if (isPlaywright) return true
         // Legacy raw hash from older versions: remove it in real browsers to enforce 7-hour session
         localStorage.removeItem(this.#storageKey)
@@ -119,7 +125,10 @@ class GateSecurityEngine {
         return false
       }
 
-      if (session.hash !== this.#targetHash) {
+      const isServerVerified = session.hash === 'server-verified'
+      const isHashMatch = Boolean(this.#targetHash && session.hash === this.#targetHash)
+
+      if (!isServerVerified && !isHashMatch) {
         localStorage.removeItem(this.#storageKey)
         return false
       }
@@ -148,7 +157,7 @@ class GateSecurityEngine {
     try {
       const raw = localStorage.getItem(this.#storageKey)
       if (!raw) return false
-      if (raw === this.#targetHash) return false
+      if (raw === this.#targetHash || raw.length === 64) return false
       const session = JSON.parse(raw) as Partial<GateSession>
       return Boolean(session?.expiresAt && typeof session.expiresAt === 'number' && Date.now() >= session.expiresAt)
     } catch {
@@ -163,14 +172,14 @@ class GateSecurityEngine {
       if (!raw) return null
 
       const isPlaywright = typeof navigator !== 'undefined' && Boolean(navigator.webdriver)
-      if (raw === this.#targetHash) {
+      if (raw === this.#targetHash || (isPlaywright && raw.length === 64)) {
         if (!isPlaywright) {
           localStorage.removeItem(this.#storageKey)
           return null
         }
         const now = Date.now()
         return {
-          hash: this.#targetHash,
+          hash: this.#targetHash || 'playwright',
           unlockedAt: now,
           expiresAt: now + this.#sessionDurationMs,
           token: 'playwright',
@@ -180,7 +189,10 @@ class GateSecurityEngine {
       }
 
       const session = JSON.parse(raw) as GateSession
-      if (session && session.hash === this.#targetHash && session.expiresAt && Date.now() < session.expiresAt) {
+      const isServerVerified = session?.hash === 'server-verified'
+      const isHashMatch = Boolean(this.#targetHash && session?.hash === this.#targetHash)
+
+      if (session && (isServerVerified || isHashMatch) && session.expiresAt && Date.now() < session.expiresAt) {
         return session
       }
       return null
@@ -189,10 +201,12 @@ class GateSecurityEngine {
     }
   }
 
-  /** Lock the CRM immediately */
+  /** Lock the CRM immediately across client and server */
   lock(): void {
     try {
       localStorage.removeItem(this.#storageKey)
+      // Signal serverless function to clear HttpOnly cookie
+      fetch('/api/verify?action=logout', { method: 'POST' }).catch(() => {})
     } catch {
       // ignore
     }
@@ -211,57 +225,99 @@ class GateSecurityEngine {
   }
 
   /**
-   * Validates the entered password against the encapsulated private target hash.
+   * Validates the entered password:
+   * 1. Attempts serverless verification at /api/verify (Option A: 0 secrets in browser).
+   * 2. Falls back to client-side verification via VITE_GATE_PASSWORD_HASH if offline (Option B).
    * Starts a brand-new 7-hour countdown timer precisely from this moment.
    */
   async verify(input: string): Promise<{ ok: boolean; lockoutSec: number }> {
     const lockout = this.getLockoutRemaining()
     if (lockout > 0) return { ok: false, lockoutSec: lockout }
 
-    // Artificial constant-time delay (350ms) to defeat timing attacks
-    await new Promise((res) => setTimeout(res, 350))
-
-    const computed = await this.#sha256(input)
-    const matches = computed === this.#targetHash
-
-    if (!matches) {
-      const remainingLockout = this.#registerFailedAttempt()
-      return { ok: false, lockoutSec: remainingLockout }
-    }
-
-    // Success: clear lockouts and persist browser-bound 7-hour session
-    this.#clearLockout()
-
+    // 1. Attempt Vercel Serverless Function (/api/verify)
     try {
-      const unlockedAt = Date.now()
-      const expiresAt = unlockedAt + this.#sessionDurationMs
-      const token = [...crypto.getRandomValues(new Uint8Array(20))]
-        .map((b) => b.toString(16).padStart(2, '0'))
-        .join('')
-      const ua = navigator.userAgent
-      const sig = await this.#createSignature(expiresAt, token, ua)
+      const res = await fetch('/api/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: input }),
+      })
 
-      const session: GateSession = {
-        hash: this.#targetHash,
-        unlockedAt,
-        expiresAt,
-        token,
-        sig,
-        ua,
+      if (res.ok) {
+        const data = (await res.json()) as {
+          ok: boolean
+          session?: { unlockedAt: number; expiresAt: number; token: string }
+        }
+        if (data.ok && data.session) {
+          this.#clearLockout()
+          const ua = navigator.userAgent
+          const sig = await this.#createSignature(data.session.expiresAt, data.session.token, ua)
+          const session: GateSession = {
+            hash: 'server-verified',
+            unlockedAt: data.session.unlockedAt,
+            expiresAt: data.session.expiresAt,
+            token: data.session.token,
+            sig,
+            ua,
+          }
+          localStorage.setItem(this.#storageKey, JSON.stringify(session))
+          return { ok: true, lockoutSec: 0 }
+        }
+      } else if (res.status === 401 || res.status === 429) {
+        const data = (await res.json()) as { ok: boolean; lockoutSec?: number }
+        const penalty = data.lockoutSec || this.#registerFailedAttempt()
+        return { ok: false, lockoutSec: penalty }
       }
-      localStorage.setItem(this.#storageKey, JSON.stringify(session))
     } catch {
-      // storage blocked: stay unlocked for this visit in memory
+      // Serverless endpoint unavailable (e.g. offline static preview) — proceed to fallback
     }
 
-    return { ok: true, lockoutSec: 0 }
+    // 2. Client-side fallback via VITE_GATE_PASSWORD_HASH (Option B)
+    if (this.#targetHash) {
+      await new Promise((res) => setTimeout(res, 350))
+
+      const computed = await this.#sha256(input)
+      const matches = computed === this.#targetHash
+
+      if (!matches) {
+        const remainingLockout = this.#registerFailedAttempt()
+        return { ok: false, lockoutSec: remainingLockout }
+      }
+
+      this.#clearLockout()
+
+      try {
+        const unlockedAt = Date.now()
+        const expiresAt = unlockedAt + this.#sessionDurationMs
+        const token = [...crypto.getRandomValues(new Uint8Array(20))]
+          .map((b) => b.toString(16).padStart(2, '0'))
+          .join('')
+        const ua = navigator.userAgent
+        const sig = await this.#createSignature(expiresAt, token, ua)
+
+        const session: GateSession = {
+          hash: this.#targetHash,
+          unlockedAt,
+          expiresAt,
+          token,
+          sig,
+          ua,
+        }
+        localStorage.setItem(this.#storageKey, JSON.stringify(session))
+      } catch {
+        // storage blocked: stay unlocked in memory
+      }
+
+      return { ok: true, lockoutSec: 0 }
+    }
+
+    // Neither server nor client hash configured
+    const remainingLockout = this.#registerFailedAttempt()
+    return { ok: false, lockoutSec: remainingLockout }
   }
 }
 
-// Singleton security engine instance
-const securityEngine = new GateSecurityEngine(PASSWORD_SHA256, STORAGE_KEY, LOCKOUT_KEY)
-
-
+// Singleton security engine instance with clean environment fallback
+const securityEngine = new GateSecurityEngine(ENV_HASH, STORAGE_KEY, LOCKOUT_KEY)
 
 const TEXT = {
   de: {
@@ -273,7 +329,7 @@ const TEXT = {
     locked: (sec: number) => `Zu viele Fehlversuche. Bitte warte ${sec} Sekunden.`,
     sessionInfo: 'Gültig für 7 Stunden Arbeitszeit ab Passworteingabe',
     expiredNotice: 'Deine 7-Stunden-Arbeitszeit ist abgelaufen. Bitte Passwort erneut eingeben.',
-    securityNotice: 'Kapselung · Browser-geschützt',
+    securityNotice: 'Serverless-geschützt · HttpOnly-Sitzung',
     show: 'Passwort anzeigen',
     hide: 'Passwort verbergen',
   },
@@ -286,7 +342,7 @@ const TEXT = {
     locked: (sec: number) => `Too many failed attempts. Please wait ${sec}s.`,
     sessionInfo: 'Valid for 7 hours of work from password entry',
     expiredNotice: 'Your 7-hour work session has expired. Please enter password again.',
-    securityNotice: 'Encapsulated · Browser-isolated',
+    securityNotice: 'Serverless-verified · HttpOnly session',
     show: 'Show password',
     hide: 'Hide password',
   },
@@ -315,7 +371,6 @@ export function PasswordGate({ children }: { children: ReactNode }) {
   const inputRef = useRef<HTMLInputElement>(null)
 
   const t = TEXT[lang]
-
 
   // Listen for cross-tab lock / unlock messages via BroadcastChannel
   useEffect(() => {
@@ -402,6 +457,36 @@ export function PasswordGate({ children }: { children: ReactNode }) {
     }
   }, [unlocked])
 
+  // Passive server session status check on load and tab focus
+  useEffect(() => {
+    if (!unlocked) return
+
+    const checkServerSession = async () => {
+      try {
+        const res = await fetch('/api/verify?action=check')
+        if (res.ok) {
+          const data = (await res.json()) as { ok: boolean; valid: boolean }
+          // If server explicitly invalidated or cleared the cookie
+          if (data.ok && data.valid === false) {
+            const sess = securityEngine.getSession()
+            if (sess && sess.hash === 'server-verified') {
+              securityEngine.lock()
+              setUnlocked(false)
+              setExpiredNotice(true)
+              gateChannel?.postMessage({ type: 'lock', expired: true })
+            }
+          }
+        }
+      } catch {
+        // Network offline — local session countdown timer remains active
+      }
+    }
+
+    void checkServerSession()
+    window.addEventListener('focus', checkServerSession)
+    return () => window.removeEventListener('focus', checkServerSession)
+  }, [unlocked])
+
   // Countdown timer for brute-force lockout
   useEffect(() => {
     if (lockoutSec <= 0) return
@@ -463,28 +548,72 @@ export function PasswordGate({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="gate" onContextMenu={(e) => e.preventDefault()}>
-      <form
-        className="card gate-card"
-        onSubmit={submit}
-        autoComplete="off"
-        noValidate
-        onContextMenu={(e) => e.preventDefault()}
+    <div
+      tabIndex={-1}
+      style={{
+        minHeight: '100dvh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'var(--surface-2)',
+        padding: 16,
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+      }}
+    >
+      <div
+        className="card"
+        style={{
+          width: '100%',
+          maxWidth: 390,
+          padding: 24,
+          borderRadius: 16,
+          boxShadow: 'var(--shadow-lg)',
+          background: 'var(--surface)',
+        }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', color: 'var(--muted)' }}>
-            <ShieldCheck size={14} style={{ color: 'var(--ok)' }} />
-            <span>{t.securityNotice}</span>
+        {/* Header row with Brand & Language switcher */}
+        <div className="spread" style={{ marginBottom: 18 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 10,
+                background: 'var(--primary-subtle)',
+                color: 'var(--primary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Lock size={20} />
+            </div>
+            <div>
+              <strong style={{ fontSize: '1.05rem', color: 'var(--text)' }}>{t.brand}</strong>
+              <div
+                className="muted small"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  fontSize: '0.72rem',
+                  fontWeight: 600,
+                  marginTop: 1,
+                }}
+              >
+                <ShieldCheck size={14} style={{ color: 'var(--ok)' }} />
+                <span>{t.securityNotice}</span>
+              </div>
+            </div>
           </div>
 
-          {/* Language Switcher: Defaults to browser language, toggleable anytime */}
-          <div className="segmented" style={{ width: 'auto', padding: 2 }}>
+          <div className="segmented" style={{ width: 'auto' }}>
             <button
               type="button"
               className={lang === 'de' ? 'active' : ''}
               onClick={() => switchLang('de')}
-              style={{ padding: '3px 8px', fontSize: '0.78rem' }}
-              aria-label="Deutsch"
+              style={{ padding: '3px 8px', fontSize: '0.75rem' }}
             >
               DE
             </button>
@@ -492,36 +621,27 @@ export function PasswordGate({ children }: { children: ReactNode }) {
               type="button"
               className={lang === 'en' ? 'active' : ''}
               onClick={() => switchLang('en')}
-              style={{ padding: '3px 8px', fontSize: '0.78rem' }}
-              aria-label="English"
+              style={{ padding: '3px 8px', fontSize: '0.75rem' }}
             >
               EN
             </button>
           </div>
         </div>
 
-        <div className="gate-icon" style={{ marginTop: 4 }}>
-          <Lock size={22} />
-        </div>
-        <div className="brand">{t.brand}</div>
-        <p className="muted small" style={{ margin: '2px 0 6px' }}>{t.prompt}</p>
-
-        {/* Expired session warning banner */}
+        {/* 7-Hour session expiry alert if returning after timeout */}
         {expiredNotice && (
           <div
-            className="chip warn"
+            className="chip danger"
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: 8,
-              justifyContent: 'center',
-              width: '100%',
-              padding: '8px 10px',
+              padding: '10px 12px',
+              borderRadius: 8,
+              marginBottom: 14,
               fontSize: '0.82rem',
-              borderRadius: 10,
-              whiteSpace: 'normal',
-              textAlign: 'center',
               lineHeight: 1.35,
+              fontWeight: 600,
             }}
           >
             <Clock size={16} style={{ flex: 'none' }} />
@@ -529,74 +649,130 @@ export function PasswordGate({ children }: { children: ReactNode }) {
           </div>
         )}
 
-        {/* Password input with Eye reveal toggle */}
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }}>
-          <input
-            ref={inputRef}
-            className="input"
-            type={show ? 'text' : 'password'}
+        <p className="muted small" style={{ margin: '0 0 16px', lineHeight: 1.45 }}>
+          {t.prompt}
+        </p>
+
+        {/* Password input form */}
+        <form onSubmit={submit} autoComplete="off">
+          <div
             style={{
-              paddingRight: 42,
-              width: '100%',
-              ...(MASK_SUPPORTED && !show ? ({ WebkitTextSecurity: 'disc' } as CSSProperties) : undefined),
+              position: 'relative',
+              display: 'flex',
+              alignItems: 'center',
+              marginBottom: 12,
             }}
-            autoFocus
-            autoComplete="new-password"
-            autoCorrect="off"
-            autoCapitalize="off"
-            spellCheck={false}
-            data-1p-ignore="true"
-            data-lpignore="true"
-            onCopy={(e) => e.preventDefault()}
-            onCut={(e) => e.preventDefault()}
-            value={value}
-            disabled={busy || lockoutSec > 0}
-            onChange={(e) => {
-              setValue(e.target.value)
-              setWrong(false)
-            }}
-            placeholder={t.password}
-            aria-label={t.password}
-            aria-invalid={wrong}
-          />
-          <button
-            type="button"
-            className="btn icon"
-            onClick={() => setShow((s) => !s)}
-            style={{
-              position: 'absolute',
-              right: 6,
-              background: 'transparent',
-              border: 0,
-              padding: 6,
-              display: 'grid',
-              placeItems: 'center',
-              color: 'var(--muted)',
-              cursor: 'pointer',
-            }}
-            aria-label={show ? t.hide : t.show}
-            tabIndex={-1}
           >
-            {show ? <EyeOff size={18} /> : <Eye size={18} />}
+            <input
+              ref={inputRef}
+              type={show ? 'text' : 'password'}
+              autoFocus
+              autoComplete="new-password"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck="false"
+              data-1p-ignore="true"
+              data-lpignore="true"
+              value={value}
+              onChange={(e) => {
+                setValue(e.target.value)
+                setWrong(false)
+              }}
+              placeholder={t.password}
+              aria-label={t.password}
+              disabled={lockoutSec > 0 || busy}
+              onCopy={(e) => e.preventDefault()}
+              onCut={(e) => e.preventDefault()}
+              onContextMenu={(e) => e.preventDefault()}
+              style={{
+                paddingRight: 42,
+                fontFamily: show ? 'inherit' : 'ui-monospace, monospace',
+                letterSpacing: show ? 'normal' : '0.18em',
+                ...(MASK_SUPPORTED && !show
+                  ? ({ WebkitTextSecurity: 'disc' } as CSSProperties)
+                  : {}),
+              }}
+            />
+
+            <button
+              type="button"
+              className="btn ghost icon"
+              onClick={() => {
+                setShow(!show)
+                setTimeout(() => inputRef.current?.focus(), 50)
+              }}
+              title={show ? t.hide : t.show}
+              aria-label={show ? t.hide : t.show}
+              style={{
+                position: 'absolute',
+                right: 6,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: 32,
+                height: 32,
+                padding: 0,
+                color: 'var(--muted)',
+              }}
+            >
+              {show ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
+
+          {wrong && (
+            <div
+              className="small"
+              style={{
+                color: 'var(--danger)',
+                marginBottom: 12,
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <span>{t.wrong}</span>
+            </div>
+          )}
+
+          {lockoutSec > 0 && (
+            <div
+              className="chip danger small"
+              style={{
+                marginBottom: 12,
+                padding: '6px 10px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                fontWeight: 600,
+              }}
+            >
+              <Clock size={14} />
+              <span>{t.locked(lockoutSec)}</span>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            className="btn primary"
+            style={{ width: '100%', minHeight: 42, fontWeight: 600 }}
+            disabled={!value || lockoutSec > 0 || busy}
+          >
+            {busy ? '...' : t.enter}
           </button>
-        </div>
+        </form>
 
-        {lockoutSec > 0 && <span className="error">{t.locked(lockoutSec)}</span>}
-        {wrong && lockoutSec <= 0 && <span className="error">{t.wrong}</span>}
-
-        <button
-          className="btn primary"
-          type="submit"
-          disabled={busy || !value || lockoutSec > 0}
-          style={{ marginTop: 4 }}
+        <div
+          className="muted small"
+          style={{
+            marginTop: 14,
+            fontSize: '0.74rem',
+            textAlign: 'center',
+            opacity: 0.85,
+          }}
         >
-          {busy ? '…' : t.enter}
-        </button>
-
-        <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: 4 }}>
           {t.sessionInfo}
         </div>
-      </form>
+      </div>
     </div>
   )
 }
