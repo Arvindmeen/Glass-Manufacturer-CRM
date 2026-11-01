@@ -132,14 +132,12 @@ export function CompaniesPage() {
       <PageHead
         title={t('nav.companies')}
         fabs={
-          view === 'list' && (
-            <>
-              <AskButton />
-              <button className="btn primary icon fab-main" onClick={() => setCreating(true)} aria-label={t('company.new')}>
-                <Plus size={22} />
-              </button>
-            </>
-          )
+          <>
+            <AskButton />
+            <button className="btn primary icon fab-main" onClick={() => setCreating(true)} aria-label={t('company.new')}>
+              <Plus size={22} />
+            </button>
+          </>
         }
       >
         <div className="segmented" style={{ width: 'auto' }}>
