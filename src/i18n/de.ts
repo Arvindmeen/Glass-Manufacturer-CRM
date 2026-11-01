@@ -227,4 +227,10 @@ export const de: Record<TKey, string> = {
   'settings.translateNeedsKey': 'Für die Übersetzung eigener Einträge einen OpenAI-Schlüssel hinterlegen',
   'settings.translateFailed': 'Einige Einträge konnten nicht übersetzt werden. Später erneut versuchen.',
   'settings.keyStored': 'Verschlüsselt auf diesem Gerät. Nur an OpenAI gesendet.',
+  'settings.sessionTitle': 'Sicherheit & Sitzung',
+  'settings.sessionActive': 'Aktive 7-Stunden-Arbeitszeit',
+  'settings.sessionStart': 'Gestartet: {time}',
+  'settings.sessionExpires': 'Sperrt um: {time}',
+  'settings.lockNow': 'CRM jetzt sperren',
+  'settings.lockConfirm': 'CRM jetzt sperren und zur Passworteingabe zurückkehren?',
 }

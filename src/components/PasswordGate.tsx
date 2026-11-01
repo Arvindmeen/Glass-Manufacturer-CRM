@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
-import { Eye, EyeOff, Lock, ShieldCheck } from 'lucide-react'
+import { Clock, Eye, EyeOff, Lock, ShieldCheck } from 'lucide-react'
 import { getSettings, updateSettings, type Lang } from '../store/settings'
 
 /**
@@ -10,9 +10,11 @@ import { getSettings, updateSettings, type Lang } from '../store/settings'
  *   by the browser's JavaScript engine (V8 / JavaScriptCore) at runtime.
  * - Private fields cannot be read, enumerated, or modified from DevTools console or external scripts.
  * - The plaintext password is NEVER stored anywhere — only the cryptographic SHA-256 hash.
- * - Session duration: Exactly 7 hours of work.
- * - Browser-specific isolation: Session is cryptographically bound to the current browser's userAgent.
- * - Active background monitor: Re-locks open tabs once 7 hours elapse.
+ * - Session duration: Exactly 7 hours of work from the moment password is entered.
+ * - Chrome / Multi-tab hardening: Active expiration watchers, sleep-wakeup listeners,
+ *   pointer/keydown checks, and BroadcastChannel cross-tab sync.
+ * - Anti-inspection hardening: DevTools shortcuts blocked, CSS disc masking, clipboard protected.
+ * - Brute-force rate limiter: 5 attempts -> 30s lockout with live countdown.
  */
 
 const PASSWORD_SHA256 = 'f3831c5e70ff9070c475c48c825cca87fc978a49c9f11ccef7e6d83a4d593261'
@@ -21,8 +23,9 @@ const LOCKOUT_KEY = 'glasscrm:gate:lock'
 
 const MASK_SUPPORTED = typeof CSS !== 'undefined' && CSS.supports('-webkit-text-security', 'disc')
 
-interface GateSession {
+export interface GateSession {
   hash: string
+  unlockedAt: number
   expiresAt: number
   token: string
   sig: string
@@ -33,6 +36,9 @@ interface LockoutState {
   attempts: number
   lockedUntil: number
 }
+
+const gateChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('glasscrm:gate') : null
+const lockListeners = new Set<() => void>()
 
 /**
  * Encapsulated security manager.
@@ -45,7 +51,7 @@ class GateSecurityEngine {
   readonly #lockoutKey: string
   readonly #maxAttempts = 5
   readonly #lockoutDurationSec = 30
-  readonly #sessionDurationMs = 7 * 60 * 60 * 1000 // 7 hours of work
+  readonly #sessionDurationMs = 7 * 60 * 60 * 1000 // Exactly 7 hours of work (25,200,000 ms)
 
   constructor(targetHash: string, storageKey: string, lockoutKey: string) {
     this.#targetHash = targetHash
@@ -90,25 +96,42 @@ class GateSecurityEngine {
     }
   }
 
-  /** Checks if the user currently holds an active, valid, tamper-free 7-hour session */
+  /**
+   * Checks if the user currently holds an active, valid, tamper-free 7-hour session.
+   * Cleans up legacy un-expirable entries and expired tokens immediately.
+   */
   isUnlocked(): boolean {
     try {
       const raw = localStorage.getItem(this.#storageKey)
       if (!raw) return false
 
-      // Backwards-compatible bypass for Playwright e2e test scripts
-      if (raw === this.#targetHash) return true
-
-      const session = JSON.parse(raw) as Partial<GateSession>
-      if (session.hash !== this.#targetHash) return false
-
-      // Expire strictly after 7 hours of work
-      if (!session.expiresAt || typeof session.expiresAt !== 'number' || Date.now() > session.expiresAt) {
+      // Automated Playwright E2E test runner bypass
+      const isPlaywright = typeof navigator !== 'undefined' && Boolean(navigator.webdriver)
+      if (raw === this.#targetHash) {
+        if (isPlaywright) return true
+        // Legacy raw hash from older versions: remove it in real browsers to enforce 7-hour session
         localStorage.removeItem(this.#storageKey)
         return false
       }
 
-      // Browser-specific check: invalidate if copied to another browser
+      const session = JSON.parse(raw) as Partial<GateSession>
+      if (!session || typeof session !== 'object') {
+        localStorage.removeItem(this.#storageKey)
+        return false
+      }
+
+      if (session.hash !== this.#targetHash) {
+        localStorage.removeItem(this.#storageKey)
+        return false
+      }
+
+      // Expire strictly after 7 hours of work from the moment password was entered
+      if (!session.expiresAt || typeof session.expiresAt !== 'number' || Date.now() >= session.expiresAt) {
+        localStorage.removeItem(this.#storageKey)
+        return false
+      }
+
+      // Browser-specific check: invalidate if copied to another browser or device
       if (session.ua && session.ua !== navigator.userAgent) {
         localStorage.removeItem(this.#storageKey)
         return false
@@ -116,7 +139,63 @@ class GateSecurityEngine {
 
       return true
     } catch {
+      localStorage.removeItem(this.#storageKey)
       return false
+    }
+  }
+
+  /** Detects whether the session has expired to display a helpful notification */
+  hasExpiredSession(): boolean {
+    try {
+      const raw = localStorage.getItem(this.#storageKey)
+      if (!raw) return false
+      if (raw === this.#targetHash) return false
+      const session = JSON.parse(raw) as Partial<GateSession>
+      return Boolean(session?.expiresAt && typeof session.expiresAt === 'number' && Date.now() >= session.expiresAt)
+    } catch {
+      return false
+    }
+  }
+
+  /** Returns current active session metadata */
+  getSession(): GateSession | null {
+    try {
+      const raw = localStorage.getItem(this.#storageKey)
+      if (!raw) return null
+
+      const isPlaywright = typeof navigator !== 'undefined' && Boolean(navigator.webdriver)
+      if (raw === this.#targetHash) {
+        if (!isPlaywright) {
+          localStorage.removeItem(this.#storageKey)
+          return null
+        }
+        const now = Date.now()
+        return {
+          hash: this.#targetHash,
+          unlockedAt: now,
+          expiresAt: now + this.#sessionDurationMs,
+          token: 'playwright',
+          sig: 'playwright',
+          ua: navigator.userAgent,
+        }
+      }
+
+      const session = JSON.parse(raw) as GateSession
+      if (session && session.hash === this.#targetHash && session.expiresAt && Date.now() < session.expiresAt) {
+        return session
+      }
+      return null
+    } catch {
+      return null
+    }
+  }
+
+  /** Lock the CRM immediately */
+  lock(): void {
+    try {
+      localStorage.removeItem(this.#storageKey)
+    } catch {
+      // ignore
     }
   }
 
@@ -134,7 +213,7 @@ class GateSecurityEngine {
 
   /**
    * Validates the entered password against the encapsulated private target hash.
-   * Cleans up plaintext immediately and sets a signed session on success.
+   * Starts a brand-new 7-hour countdown timer precisely from this moment.
    */
   async verify(input: string): Promise<{ ok: boolean; lockoutSec: number }> {
     const lockout = this.getLockoutRemaining()
@@ -151,11 +230,12 @@ class GateSecurityEngine {
       return { ok: false, lockoutSec: remainingLockout }
     }
 
-    // Success: clear lockouts and persist browser-bound session
+    // Success: clear lockouts and persist browser-bound 7-hour session
     this.#clearLockout()
 
     try {
-      const expiresAt = Date.now() + this.#sessionDurationMs
+      const unlockedAt = Date.now()
+      const expiresAt = unlockedAt + this.#sessionDurationMs
       const token = [...crypto.getRandomValues(new Uint8Array(20))]
         .map((b) => b.toString(16).padStart(2, '0'))
         .join('')
@@ -164,6 +244,7 @@ class GateSecurityEngine {
 
       const session: GateSession = {
         hash: this.#targetHash,
+        unlockedAt,
         expiresAt,
         token,
         sig,
@@ -181,6 +262,48 @@ class GateSecurityEngine {
 // Singleton security engine instance
 const securityEngine = new GateSecurityEngine(PASSWORD_SHA256, STORAGE_KEY, LOCKOUT_KEY)
 
+/** Formats milliseconds into HH:MM:SS */
+export function formatRemainingTime(ms: number): string {
+  if (ms <= 0) return '00:00:00'
+  const totalSeconds = Math.floor(ms / 1000)
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+}
+
+/** Lock the CRM immediately across all active tabs */
+export function lockGateSession() {
+  securityEngine.lock()
+  gateChannel?.postMessage({ type: 'lock', expired: false })
+  lockListeners.forEach((fn) => fn())
+}
+
+/** Hook providing live countdown and session status to components */
+export function useGateSession() {
+  const [session, setSession] = useState(() => securityEngine.getSession())
+  const [now, setNow] = useState(() => Date.now())
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(Date.now())
+      setSession(securityEngine.getSession())
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  const remainingMs = session ? Math.max(0, session.expiresAt - now) : 0
+
+  return {
+    isUnlocked: Boolean(session && remainingMs > 0),
+    unlockedAt: session?.unlockedAt ?? null,
+    expiresAt: session?.expiresAt ?? null,
+    remainingMs,
+    remainingFormatted: formatRemainingTime(remainingMs),
+    lock: lockGateSession,
+  }
+}
+
 const TEXT = {
   de: {
     brand: 'Glass CRM',
@@ -189,7 +312,8 @@ const TEXT = {
     enter: 'Öffnen',
     wrong: 'Falsches Passwort. Bitte versuche es nochmals.',
     locked: (sec: number) => `Zu viele Fehlversuche. Bitte warte ${sec} Sekunden.`,
-    sessionInfo: 'Gültig für 7 Stunden Arbeitszeit',
+    sessionInfo: 'Gültig für 7 Stunden Arbeitszeit ab Passworteingabe',
+    expiredNotice: 'Deine 7-Stunden-Arbeitszeit ist abgelaufen. Bitte Passwort erneut eingeben.',
     securityNotice: 'Kapselung · Browser-geschützt',
     show: 'Passwort anzeigen',
     hide: 'Passwort verbergen',
@@ -201,7 +325,8 @@ const TEXT = {
     enter: 'Enter',
     wrong: 'Wrong password. Please try again.',
     locked: (sec: number) => `Too many failed attempts. Please wait ${sec}s.`,
-    sessionInfo: 'Valid for 7 hours of work',
+    sessionInfo: 'Valid for 7 hours of work from password entry',
+    expiredNotice: 'Your 7-hour work session has expired. Please enter password again.',
     securityNotice: 'Encapsulated · Browser-isolated',
     show: 'Show password',
     hide: 'Hide password',
@@ -221,6 +346,7 @@ function detectInitialLang(): Lang {
 
 export function PasswordGate({ children }: { children: ReactNode }) {
   const [unlocked, setUnlocked] = useState(() => securityEngine.isUnlocked())
+  const [expiredNotice, setExpiredNotice] = useState(() => securityEngine.hasExpiredSession())
   const [lang, setLang] = useState<Lang>(detectInitialLang)
   const [value, setValue] = useState('')
   const [show, setShow] = useState(false)
@@ -231,25 +357,100 @@ export function PasswordGate({ children }: { children: ReactNode }) {
 
   const t = TEXT[lang]
 
-  // Re-check expiry on focus, tab visibility change, or background timer so
-  // an open tab automatically re-locks once 7 hours elapse.
+  // Listen for local manual locks (e.g. from Settings "Lock CRM now" button)
+  useEffect(() => {
+    const onManualLock = () => {
+      setUnlocked(false)
+      setExpiredNotice(false)
+    }
+    lockListeners.add(onManualLock)
+    return () => {
+      lockListeners.delete(onManualLock)
+    }
+  }, [])
+
+  // Listen for cross-tab lock / unlock messages via BroadcastChannel
+  useEffect(() => {
+    if (!gateChannel) return
+    const onChannel = (e: MessageEvent) => {
+      if (e.data?.type === 'lock') {
+        setUnlocked(false)
+        setExpiredNotice(Boolean(e.data?.expired))
+      } else if (e.data?.type === 'unlock') {
+        if (securityEngine.isUnlocked()) {
+          setUnlocked(true)
+          setExpiredNotice(false)
+        }
+      }
+    }
+    gateChannel.addEventListener('message', onChannel)
+    return () => gateChannel.removeEventListener('message', onChannel)
+  }, [])
+
+  // Active 7-hour expiration watch: exact timer, polling interval, visibility, focus, and user activity
   useEffect(() => {
     if (!unlocked) return
 
     const check = () => {
       if (!securityEngine.isUnlocked()) {
+        securityEngine.lock()
         setUnlocked(false)
+        setExpiredNotice(true)
+        gateChannel?.postMessage({ type: 'lock', expired: true })
       }
     }
 
-    const timer = setInterval(check, 60 * 1000)
+    const session = securityEngine.getSession()
+    const remainingMs = session ? Math.max(0, session.expiresAt - Date.now()) : 0
+
+    if (remainingMs <= 0) {
+      check()
+      return
+    }
+
+    // 1. Exact-millisecond timer to fire right when 7 hours expire
+    const exactTimer = setTimeout(check, remainingMs)
+
+    // 2. High-frequency 5-second interval to catch wakeups from suspended Chrome tabs
+    const pollInterval = setInterval(check, 5000)
+
+    // 3. Tab visibility, window focus, and pageshow events
     window.addEventListener('visibilitychange', check)
     window.addEventListener('focus', check)
+    window.addEventListener('pageshow', check)
+
+    // 4. User activity check (throttled to every 2 seconds)
+    let lastActivityCheck = Date.now()
+    const onUserActivity = () => {
+      const now = Date.now()
+      if (now - lastActivityCheck > 2000) {
+        lastActivityCheck = now
+        check()
+      }
+    }
+    document.addEventListener('pointerdown', onUserActivity, { passive: true })
+    document.addEventListener('keydown', onUserActivity, { passive: true })
+
+    // 5. Cross-tab storage change listener
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEY) {
+        if (!e.newValue || !securityEngine.isUnlocked()) {
+          setUnlocked(false)
+          setExpiredNotice(true)
+        }
+      }
+    }
+    window.addEventListener('storage', onStorage)
 
     return () => {
-      clearInterval(timer)
+      clearTimeout(exactTimer)
+      clearInterval(pollInterval)
       window.removeEventListener('visibilitychange', check)
       window.removeEventListener('focus', check)
+      window.removeEventListener('pageshow', check)
+      document.removeEventListener('pointerdown', onUserActivity)
+      document.removeEventListener('keydown', onUserActivity)
+      window.removeEventListener('storage', onStorage)
     }
   }, [unlocked])
 
@@ -257,10 +458,7 @@ export function PasswordGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (lockoutSec <= 0) return
     const timer = setInterval(() => {
-      setLockoutSec((s) => {
-        if (s <= 1) return 0
-        return s - 1
-      })
+      setLockoutSec((s) => (s <= 1 ? 0 : s - 1))
     }, 1000)
     return () => clearInterval(timer)
   }, [lockoutSec])
@@ -311,7 +509,9 @@ export function PasswordGate({ children }: { children: ReactNode }) {
       return
     }
 
+    setExpiredNotice(false)
     setUnlocked(true)
+    gateChannel?.postMessage({ type: 'unlock' })
   }
 
   return (
@@ -357,6 +557,29 @@ export function PasswordGate({ children }: { children: ReactNode }) {
         </div>
         <div className="brand">{t.brand}</div>
         <p className="muted small" style={{ margin: '2px 0 6px' }}>{t.prompt}</p>
+
+        {/* Expired session warning banner */}
+        {expiredNotice && (
+          <div
+            className="chip warn"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              justifyContent: 'center',
+              width: '100%',
+              padding: '8px 10px',
+              fontSize: '0.82rem',
+              borderRadius: 10,
+              whiteSpace: 'normal',
+              textAlign: 'center',
+              lineHeight: 1.35,
+            }}
+          >
+            <Clock size={16} style={{ flex: 'none' }} />
+            <span>{t.expiredNotice}</span>
+          </div>
+        )}
 
         {/* Password input with Eye reveal toggle */}
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }}>

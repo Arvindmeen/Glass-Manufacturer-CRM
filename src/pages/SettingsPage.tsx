@@ -1,7 +1,8 @@
 import { useState, useSyncExternalStore, type CSSProperties } from 'react'
-import { Eye, EyeOff, Lock } from 'lucide-react'
+import { Clock, Eye, EyeOff, Lock, ShieldCheck } from 'lucide-react'
 import { useT } from '../i18n'
 import { KEY_PATTERN, removeKey, saveKey, setKeyMode, subscribeVault, vaultStatus, type KeyMode } from '../lib/keyVault'
+import { useGateSession } from '../components/PasswordGate'
 import { resetDemoData } from '../store/db'
 import { updateSettings, useSettings, type Lang } from '../store/settings'
 import { Field, PageHead, Section, toast } from '../components/ui'
@@ -13,6 +14,7 @@ export function SettingsPage() {
   const t = useT()
   const settings = useSettings()
   const vault = useSyncExternalStore(subscribeVault, vaultStatus)
+  const gateSession = useGateSession()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
   const [show, setShow] = useState(false)
@@ -132,6 +134,66 @@ export function SettingsPage() {
           <span className="muted small">{!vault.persistent ? t('settings.keySession') : (vault.hasKey && !editing ? vault.mode : mode) === 'session' ? t('settings.keySessionStored') : t('settings.keyStored')}</span>
         </Field>
       </div>
+
+      <Section title={t('settings.sessionTitle')}>
+        <div className="card" style={{ padding: 16 }}>
+          <div className="spread">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <ShieldCheck size={22} style={{ color: 'var(--ok)' }} />
+              <div>
+                <strong>{t('settings.sessionActive')}</strong>
+                <div className="muted small" style={{ marginTop: 2 }}>
+                  {gateSession.unlockedAt && (
+                    <>
+                      {t('settings.sessionStart', {
+                        time: new Date(gateSession.unlockedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                      })}{' '}
+                      ·{' '}
+                    </>
+                  )}
+                  {gateSession.expiresAt && (
+                    <>
+                      {t('settings.sessionExpires', {
+                        time: new Date(gateSession.expiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                      })}
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div>
+              <span
+                className="chip ok"
+                style={{
+                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+                  fontSize: '0.92rem',
+                  fontWeight: 700,
+                  padding: '5px 12px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                <Clock size={15} /> {gateSession.remainingFormatted}
+              </span>
+            </div>
+          </div>
+          <div style={{ marginTop: 14, display: 'flex', justifyContent: 'flex-end' }}>
+            <button
+              className="btn small danger ghost"
+              type="button"
+              onClick={() => {
+                if (confirm(t('settings.lockConfirm'))) {
+                  gateSession.lock()
+                }
+              }}
+            >
+              <Lock size={15} /> {t('settings.lockNow')}
+            </button>
+          </div>
+        </div>
+      </Section>
+
       <Section title={t('settings.demo')}>
         <button
           className="btn danger"
