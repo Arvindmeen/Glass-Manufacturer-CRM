@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { Clock, Eye, EyeOff, Lock, ShieldCheck } from 'lucide-react'
 import { getSettings, updateSettings, type Lang } from '../store/settings'
 
 /**
- * Site password gate protecting the CRM deployment.
+ * Site password gate so the public deployment is not open to everyone.
  *
  * Security Architecture (Hybrid Zero-Trust Defense):
  * 1. Serverless Edge Verification (/api/verify):
@@ -11,22 +11,17 @@ import { getSettings, updateSettings, type Lang } from '../store/settings'
  *    - Verified on the server using crypto.timingSafeEqual (constant-time).
  *    - Sets an HttpOnly, SameSite=Strict, Secure session cookie with a 7-hour lifespan.
  *    - 0 secrets and 0 hashes in client JavaScript bundle.
- * 2. Client-side Fallback (Option B):
+ * 2. Client-side Fallback:
  *    - Uses import.meta.env.VITE_GATE_PASSWORD_HASH when serverless is unreachable (e.g. offline dev).
- *    - No hardcoded secrets in the repository or git history.
  * 3. Client Isolation & Hardening:
  *    - Native ECMAScript private fields (`#privateField`) enforced by the JS engine runtime.
  *    - 7-hour active work session duration with Chrome suspension wakeup watchers.
- *    - Anti-inspection hardening: DevTools shortcuts blocked, CSS disc masking, clipboard protected.
  *    - Multi-tab synchronization via BroadcastChannel.
  */
 
-// Clean environment variable (Option B): configured via .env / Vercel dashboard
 const ENV_HASH = (import.meta.env.VITE_GATE_PASSWORD_HASH || '').trim()
 const STORAGE_KEY = 'glasscrm:gate'
 const LOCKOUT_KEY = 'glasscrm:gate:lock'
-
-const MASK_SUPPORTED = typeof CSS !== 'undefined' && CSS.supports('-webkit-text-security', 'disc')
 
 export interface GateSession {
   hash: string
@@ -49,7 +44,6 @@ const gateChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChann
  * All sensitive state and verification routines are locked behind native `#` private fields.
  */
 class GateSecurityEngine {
-  // Native ECMAScript private fields — inaccessible outside this class even in DevTools
   readonly #targetHash: string
   readonly #storageKey: string
   readonly #lockoutKey: string
@@ -103,7 +97,6 @@ class GateSecurityEngine {
 
   /**
    * Checks if the user currently holds an active, valid, tamper-free 7-hour session.
-   * Cleans up legacy un-expirable entries and expired tokens immediately.
    */
   isUnlocked(): boolean {
     try {
@@ -114,7 +107,6 @@ class GateSecurityEngine {
       const isPlaywright = typeof navigator !== 'undefined' && Boolean(navigator.webdriver)
       if (raw === this.#targetHash || (isPlaywright && raw.length === 64)) {
         if (isPlaywright) return true
-        // Legacy raw hash from older versions: remove it in real browsers to enforce 7-hour session
         localStorage.removeItem(this.#storageKey)
         return false
       }
@@ -148,19 +140,6 @@ class GateSecurityEngine {
       return true
     } catch {
       localStorage.removeItem(this.#storageKey)
-      return false
-    }
-  }
-
-  /** Detects whether the session has expired to display a helpful notification */
-  hasExpiredSession(): boolean {
-    try {
-      const raw = localStorage.getItem(this.#storageKey)
-      if (!raw) return false
-      if (raw === this.#targetHash || raw.length === 64) return false
-      const session = JSON.parse(raw) as Partial<GateSession>
-      return Boolean(session?.expiresAt && typeof session.expiresAt === 'number' && Date.now() >= session.expiresAt)
-    } catch {
       return false
     }
   }
@@ -205,7 +184,6 @@ class GateSecurityEngine {
   lock(): void {
     try {
       localStorage.removeItem(this.#storageKey)
-      // Signal serverless function to clear HttpOnly cookie
       fetch('/api/verify?action=logout', { method: 'POST' }).catch(() => {})
     } catch {
       // ignore
@@ -226,9 +204,8 @@ class GateSecurityEngine {
 
   /**
    * Validates the entered password:
-   * 1. Attempts serverless verification at /api/verify (Option A: 0 secrets in browser).
-   * 2. Falls back to client-side verification via VITE_GATE_PASSWORD_HASH if offline (Option B).
-   * Starts a brand-new 7-hour countdown timer precisely from this moment.
+   * 1. Attempts serverless verification at /api/verify.
+   * 2. Falls back to client-side verification via VITE_GATE_PASSWORD_HASH if offline.
    */
   async verify(input: string): Promise<{ ok: boolean; lockoutSec: number }> {
     const lockout = this.getLockoutRemaining()
@@ -268,10 +245,10 @@ class GateSecurityEngine {
         return { ok: false, lockoutSec: penalty }
       }
     } catch {
-      // Serverless endpoint unavailable (e.g. offline static preview) — proceed to fallback
+      // Serverless endpoint unavailable — proceed to fallback
     }
 
-    // 2. Client-side fallback via VITE_GATE_PASSWORD_HASH (Option B)
+    // 2. Client-side fallback via VITE_GATE_PASSWORD_HASH
     if (this.#targetHash) {
       await new Promise((res) => setTimeout(res, 350))
 
@@ -304,19 +281,17 @@ class GateSecurityEngine {
         }
         localStorage.setItem(this.#storageKey, JSON.stringify(session))
       } catch {
-        // storage blocked: stay unlocked in memory
+        // storage blocked
       }
 
       return { ok: true, lockoutSec: 0 }
     }
 
-    // Neither server nor client hash configured
     const remainingLockout = this.#registerFailedAttempt()
     return { ok: false, lockoutSec: remainingLockout }
   }
 }
 
-// Singleton security engine instance with clean environment fallback
 const securityEngine = new GateSecurityEngine(ENV_HASH, STORAGE_KEY, LOCKOUT_KEY)
 
 const TEXT = {
@@ -328,8 +303,7 @@ const TEXT = {
     wrong: 'Falsches Passwort. Bitte versuche es nochmals.',
     locked: (sec: number) => `Zu viele Fehlversuche. Bitte warte ${sec} Sekunden.`,
     sessionInfo: 'Gültig für 7 Stunden Arbeitszeit ab Passworteingabe',
-    expiredNotice: 'Deine 7-Stunden-Arbeitszeit ist abgelaufen. Bitte Passwort erneut eingeben.',
-    securityNotice: 'Serverless-geschützt · HttpOnly-Sitzung',
+    securityNotice: 'Serverless-geschützt · HttpOnly',
     show: 'Passwort anzeigen',
     hide: 'Passwort verbergen',
   },
@@ -341,7 +315,6 @@ const TEXT = {
     wrong: 'Wrong password. Please try again.',
     locked: (sec: number) => `Too many failed attempts. Please wait ${sec}s.`,
     sessionInfo: 'Valid for 7 hours of work from password entry',
-    expiredNotice: 'Your 7-hour work session has expired. Please enter password again.',
     securityNotice: 'Serverless-verified · HttpOnly session',
     show: 'Show password',
     hide: 'Hide password',
@@ -361,16 +334,19 @@ function detectInitialLang(): Lang {
 
 export function PasswordGate({ children }: { children: ReactNode }) {
   const [unlocked, setUnlocked] = useState(() => securityEngine.isUnlocked())
-  const [expiredNotice, setExpiredNotice] = useState(() => securityEngine.hasExpiredSession())
   const [lang, setLang] = useState<Lang>(detectInitialLang)
   const [value, setValue] = useState('')
   const [show, setShow] = useState(false)
   const [wrong, setWrong] = useState(false)
   const [busy, setBusy] = useState(false)
   const [lockoutSec, setLockoutSec] = useState(() => securityEngine.getLockoutRemaining())
-  const inputRef = useRef<HTMLInputElement>(null)
 
   const t = TEXT[lang]
+
+  const switchLang = (newLang: Lang) => {
+    setLang(newLang)
+    updateSettings({ lang: newLang })
+  }
 
   // Listen for cross-tab lock / unlock messages via BroadcastChannel
   useEffect(() => {
@@ -378,11 +354,9 @@ export function PasswordGate({ children }: { children: ReactNode }) {
     const onChannel = (e: MessageEvent) => {
       if (e.data?.type === 'lock') {
         setUnlocked(false)
-        setExpiredNotice(Boolean(e.data?.expired))
       } else if (e.data?.type === 'unlock') {
         if (securityEngine.isUnlocked()) {
           setUnlocked(true)
-          setExpiredNotice(false)
         }
       }
     }
@@ -398,7 +372,6 @@ export function PasswordGate({ children }: { children: ReactNode }) {
       if (!securityEngine.isUnlocked()) {
         securityEngine.lock()
         setUnlocked(false)
-        setExpiredNotice(true)
         gateChannel?.postMessage({ type: 'lock', expired: true })
       }
     }
@@ -411,18 +384,13 @@ export function PasswordGate({ children }: { children: ReactNode }) {
       return
     }
 
-    // 1. Exact-millisecond timer to fire right when 7 hours expire
     const exactTimer = setTimeout(check, remainingMs)
-
-    // 2. High-frequency 5-second interval to catch wakeups from suspended Chrome tabs
     const pollInterval = setInterval(check, 5000)
 
-    // 3. Tab visibility, window focus, and pageshow events
     window.addEventListener('visibilitychange', check)
     window.addEventListener('focus', check)
     window.addEventListener('pageshow', check)
 
-    // 4. User activity check (throttled to every 2 seconds)
     let lastActivityCheck = Date.now()
     const onUserActivity = () => {
       const now = Date.now()
@@ -434,12 +402,10 @@ export function PasswordGate({ children }: { children: ReactNode }) {
     document.addEventListener('pointerdown', onUserActivity, { passive: true })
     document.addEventListener('keydown', onUserActivity, { passive: true })
 
-    // 5. Cross-tab storage change listener
     const onStorage = (e: StorageEvent) => {
       if (e.key === STORAGE_KEY) {
         if (!e.newValue || !securityEngine.isUnlocked()) {
           setUnlocked(false)
-          setExpiredNotice(true)
         }
       }
     }
@@ -457,7 +423,7 @@ export function PasswordGate({ children }: { children: ReactNode }) {
     }
   }, [unlocked])
 
-  // Passive server session status check on load and tab focus
+  // Passive server session check on load and tab focus
   useEffect(() => {
     if (!unlocked) return
 
@@ -466,19 +432,17 @@ export function PasswordGate({ children }: { children: ReactNode }) {
         const res = await fetch('/api/verify?action=check')
         if (res.ok) {
           const data = (await res.json()) as { ok: boolean; valid: boolean }
-          // If server explicitly invalidated or cleared the cookie
           if (data.ok && data.valid === false) {
             const sess = securityEngine.getSession()
             if (sess && sess.hash === 'server-verified') {
               securityEngine.lock()
               setUnlocked(false)
-              setExpiredNotice(true)
               gateChannel?.postMessage({ type: 'lock', expired: true })
             }
           }
         }
       } catch {
-        // Network offline — local session countdown timer remains active
+        // network offline
       }
     }
 
@@ -496,30 +460,7 @@ export function PasswordGate({ children }: { children: ReactNode }) {
     return () => clearInterval(timer)
   }, [lockoutSec])
 
-  // Block devtools shortcut keys & inspect attempts while on the gate screen
-  useEffect(() => {
-    if (unlocked) return
-
-    const blockInspectKeys = (e: KeyboardEvent) => {
-      if (
-        e.key === 'F12' ||
-        (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) ||
-        (e.ctrlKey && (e.key === 'U' || e.key === 'u'))
-      ) {
-        e.preventDefault()
-      }
-    }
-
-    window.addEventListener('keydown', blockInspectKeys)
-    return () => window.removeEventListener('keydown', blockInspectKeys)
-  }, [unlocked])
-
   if (unlocked) return <>{children}</>
-
-  const switchLang = (newLang: Lang) => {
-    setLang(newLang)
-    updateSettings({ lang: newLang })
-  }
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
@@ -527,11 +468,7 @@ export function PasswordGate({ children }: { children: ReactNode }) {
 
     setBusy(true)
     const entered = value
-
-    // Purge plaintext from input and component state immediately
     setValue('')
-    setShow(false)
-    if (inputRef.current) inputRef.current.value = ''
 
     const result = await securityEngine.verify(entered)
     setBusy(false)
@@ -542,39 +479,43 @@ export function PasswordGate({ children }: { children: ReactNode }) {
       return
     }
 
-    setExpiredNotice(false)
     setUnlocked(true)
     gateChannel?.postMessage({ type: 'unlock' })
   }
 
   return (
     <div
-      tabIndex={-1}
       style={{
         minHeight: '100dvh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+        display: 'grid',
+        placeItems: 'center',
+        padding: 'max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left))',
         background: 'var(--surface-2)',
-        padding: 16,
-        userSelect: 'none',
-        WebkitUserSelect: 'none',
+        boxSizing: 'border-box',
       }}
     >
       <div
         className="card"
         style={{
-          width: '100%',
-          maxWidth: 390,
-          padding: 24,
+          width: 'min(100%, 415px)',
+          padding: 'clamp(20px, 5vw, 28px)',
           borderRadius: 16,
           boxShadow: 'var(--shadow-lg)',
           background: 'var(--surface)',
+          boxSizing: 'border-box',
         }}
       >
-        {/* Header row with Brand & Language switcher */}
-        <div className="spread" style={{ marginBottom: 18 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {/* Header row: Icon + Brand + Security Badge | Language Switcher */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            marginBottom: 18,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
             <div
               style={{
                 width: 38,
@@ -582,15 +523,17 @@ export function PasswordGate({ children }: { children: ReactNode }) {
                 borderRadius: 10,
                 background: 'var(--primary-subtle)',
                 color: 'var(--primary)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
+                display: 'grid',
+                placeItems: 'center',
+                flexShrink: 0,
               }}
             >
               <Lock size={20} />
             </div>
-            <div>
-              <strong style={{ fontSize: '1.05rem', color: 'var(--text)' }}>{t.brand}</strong>
+            <div style={{ minWidth: 0 }}>
+              <strong style={{ fontSize: '1.05rem', color: 'var(--text)', display: 'block', lineHeight: 1.2 }}>
+                {t.brand}
+              </strong>
               <div
                 className="muted small"
                 style={{
@@ -599,21 +542,23 @@ export function PasswordGate({ children }: { children: ReactNode }) {
                   gap: 4,
                   fontSize: '0.72rem',
                   fontWeight: 600,
-                  marginTop: 1,
+                  marginTop: 2,
+                  color: 'var(--ok)',
+                  whiteSpace: 'nowrap',
                 }}
               >
-                <ShieldCheck size={14} style={{ color: 'var(--ok)' }} />
+                <ShieldCheck size={14} style={{ color: 'var(--ok)', flexShrink: 0 }} />
                 <span>{t.securityNotice}</span>
               </div>
             </div>
           </div>
 
-          <div className="segmented" style={{ width: 'auto' }}>
+          <div className="segmented" style={{ width: 'auto', flexShrink: 0 }}>
             <button
               type="button"
               className={lang === 'de' ? 'active' : ''}
               onClick={() => switchLang('de')}
-              style={{ padding: '3px 8px', fontSize: '0.75rem' }}
+              style={{ padding: '4px 9px', fontSize: '0.75rem', fontWeight: 600 }}
             >
               DE
             </button>
@@ -621,39 +566,18 @@ export function PasswordGate({ children }: { children: ReactNode }) {
               type="button"
               className={lang === 'en' ? 'active' : ''}
               onClick={() => switchLang('en')}
-              style={{ padding: '3px 8px', fontSize: '0.75rem' }}
+              style={{ padding: '4px 9px', fontSize: '0.75rem', fontWeight: 600 }}
             >
               EN
             </button>
           </div>
         </div>
 
-        {/* 7-Hour session expiry alert if returning after timeout */}
-        {expiredNotice && (
-          <div
-            className="chip danger"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '10px 12px',
-              borderRadius: 8,
-              marginBottom: 14,
-              fontSize: '0.82rem',
-              lineHeight: 1.35,
-              fontWeight: 600,
-            }}
-          >
-            <Clock size={16} style={{ flex: 'none' }} />
-            <span>{t.expiredNotice}</span>
-          </div>
-        )}
-
-        <p className="muted small" style={{ margin: '0 0 16px', lineHeight: 1.45 }}>
+        <p className="muted small" style={{ margin: '0 0 16px', lineHeight: 1.45, fontSize: '0.88rem' }}>
           {t.prompt}
         </p>
 
-        {/* Password input form */}
+        {/* Input Form with CRM-standard input styling & integrated Eye toggle */}
         <form onSubmit={submit} autoComplete="off">
           <div
             style={{
@@ -661,18 +585,14 @@ export function PasswordGate({ children }: { children: ReactNode }) {
               display: 'flex',
               alignItems: 'center',
               marginBottom: 12,
+              width: '100%',
             }}
           >
             <input
-              ref={inputRef}
+              className="input"
               type={show ? 'text' : 'password'}
               autoFocus
-              autoComplete="new-password"
-              autoCorrect="off"
-              autoCapitalize="off"
-              spellCheck="false"
-              data-1p-ignore="true"
-              data-lpignore="true"
+              autoComplete="current-password"
               value={value}
               onChange={(e) => {
                 setValue(e.target.value)
@@ -681,26 +601,18 @@ export function PasswordGate({ children }: { children: ReactNode }) {
               placeholder={t.password}
               aria-label={t.password}
               disabled={lockoutSec > 0 || busy}
-              onCopy={(e) => e.preventDefault()}
-              onCut={(e) => e.preventDefault()}
-              onContextMenu={(e) => e.preventDefault()}
               style={{
-                paddingRight: 42,
-                fontFamily: show ? 'inherit' : 'ui-monospace, monospace',
-                letterSpacing: show ? 'normal' : '0.18em',
-                ...(MASK_SUPPORTED && !show
-                  ? ({ WebkitTextSecurity: 'disc' } as CSSProperties)
-                  : {}),
+                width: '100%',
+                minHeight: 46,
+                paddingRight: 44,
+                fontSize: '16px', // 16px prevents iOS Safari from zooming the viewport on focus
+                boxSizing: 'border-box',
               }}
             />
-
             <button
               type="button"
               className="btn ghost icon"
-              onClick={() => {
-                setShow(!show)
-                setTimeout(() => inputRef.current?.focus(), 50)
-              }}
+              onClick={() => setShow(!show)}
               title={show ? t.hide : t.show}
               aria-label={show ? t.hide : t.show}
               style={{
@@ -708,10 +620,13 @@ export function PasswordGate({ children }: { children: ReactNode }) {
                 right: 6,
                 top: '50%',
                 transform: 'translateY(-50%)',
-                width: 32,
-                height: 32,
+                width: 34,
+                height: 34,
                 padding: 0,
                 color: 'var(--muted)',
+                display: 'grid',
+                placeItems: 'center',
+                borderRadius: 8,
               }}
             >
               {show ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -725,9 +640,7 @@ export function PasswordGate({ children }: { children: ReactNode }) {
                 color: 'var(--danger)',
                 marginBottom: 12,
                 fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
+                fontSize: '0.84rem',
               }}
             >
               <span>{t.wrong}</span>
@@ -739,14 +652,15 @@ export function PasswordGate({ children }: { children: ReactNode }) {
               className="chip danger small"
               style={{
                 marginBottom: 12,
-                padding: '6px 10px',
+                padding: '8px 12px',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 6,
                 fontWeight: 600,
+                fontSize: '0.84rem',
               }}
             >
-              <Clock size={14} />
+              <Clock size={15} style={{ flexShrink: 0 }} />
               <span>{t.locked(lockoutSec)}</span>
             </div>
           )}
@@ -754,20 +668,28 @@ export function PasswordGate({ children }: { children: ReactNode }) {
           <button
             type="submit"
             className="btn primary"
-            style={{ width: '100%', minHeight: 42, fontWeight: 600 }}
+            style={{
+              width: '100%',
+              minHeight: 46,
+              fontWeight: 600,
+              fontSize: '0.98rem',
+              letterSpacing: '0.01em',
+            }}
             disabled={!value || lockoutSec > 0 || busy}
           >
             {busy ? '...' : t.enter}
           </button>
         </form>
 
+        {/* Bottom 7-hour validity footnote */}
         <div
           className="muted small"
           style={{
-            marginTop: 14,
-            fontSize: '0.74rem',
+            marginTop: 16,
+            fontSize: '0.76rem',
             textAlign: 'center',
             opacity: 0.85,
+            lineHeight: 1.4,
           }}
         >
           {t.sessionInfo}
